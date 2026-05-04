@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-// Candle Chart Component
-function CandleChart({ candles, width = 560, height = 260 }) {
-  const padding = { top: 16, right: 16, bottom: 28, left: 52 };
+function CandleChart({ candles, width = 560, height = 260, futureCount = 0 }) {
+  const padding = { top: 16, right: 16, bottom: 28, left: 60 };
   const chartW = width - padding.left - padding.right;
   const chartH = height - padding.top - padding.bottom;
 
@@ -12,205 +11,78 @@ function CandleChart({ candles, width = 560, height = 260 }) {
   const range = maxP - minP || 1;
   const pad = range * 0.08;
   const toY = (p) => padding.top + ((maxP + pad - p) / (range + 2 * pad)) * chartH;
-  const candleW = Math.max(6, Math.floor(chartW / candles.length) - 3);
+  const candleW = Math.max(5, Math.floor(chartW / candles.length) - 3);
 
   const levels = 5;
   const priceLines = Array.from({ length: levels }, (_, i) =>
     minP - pad + ((range + 2 * pad) / (levels - 1)) * i
   ).reverse();
 
+  const fmtPrice = (p) => {
+    if (p >= 1000) return p.toFixed(1);
+    if (p >= 1) return p.toFixed(3);
+    return p.toFixed(5);
+  };
+
+  const visibleCount = candles.length - futureCount;
+
   return (
     <svg width={width} height={height} style={{ display: "block" }}>
       {priceLines.map((p, i) => (
         <g key={i}>
           <line x1={padding.left} x2={padding.left + chartW} y1={toY(p)} y2={toY(p)} stroke="#1e2d3d" strokeWidth={1} />
-          <text x={padding.left - 6} y={toY(p) + 4} textAnchor="end" fill="#4a6278" fontSize={9} fontFamily="'Courier New', monospace">{p.toFixed(2)}</text>
+          <text x={padding.left - 6} y={toY(p) + 4} textAnchor="end" fill="#4a6278" fontSize={9} fontFamily="'Courier New', monospace">{fmtPrice(p)}</text>
         </g>
       ))}
+      {futureCount > 0 && (() => {
+        const xStart = padding.left + (visibleCount / candles.length) * chartW;
+        return (
+          <rect x={xStart} y={padding.top} width={chartW - (xStart - padding.left)} height={chartH} fill="#0e1e2e" fillOpacity={0.35} />
+        );
+      })()}
       {candles.map((c, i) => {
         const x = padding.left + (i / candles.length) * chartW + chartW / candles.length / 2;
         const isGreen = c.close >= c.open;
-        const color = isGreen ? "#00d084" : "#ff4757";
+        const isFuture = i >= visibleCount;
+        const baseColor = isGreen ? "#00d084" : "#ff4757";
+        const opacity = isFuture ? 0.55 : 0.9;
         const bodyTop = toY(Math.max(c.open, c.close));
         const bodyBot = toY(Math.min(c.open, c.close));
         const bodyH = Math.max(1, bodyBot - bodyTop);
         return (
           <g key={i}>
-            <line x1={x} x2={x} y1={toY(c.high)} y2={toY(c.low)} stroke={color} strokeWidth={1.2} />
-            <rect x={x - candleW / 2} y={bodyTop} width={candleW} height={bodyH} fill={color} fillOpacity={0.85} stroke={color} strokeWidth={0.5} />
+            <line x1={x} x2={x} y1={toY(c.high)} y2={toY(c.low)} stroke={baseColor} strokeWidth={1.2} opacity={opacity} />
+            <rect x={x - candleW / 2} y={bodyTop} width={candleW} height={bodyH} fill={baseColor} fillOpacity={opacity} stroke={baseColor} strokeWidth={0.5} />
           </g>
         );
       })}
+      {futureCount > 0 && (() => {
+        const xStart = padding.left + (visibleCount / candles.length) * chartW;
+        return (
+          <line x1={xStart} x2={xStart} y1={padding.top} y2={padding.top + chartH} stroke="#3d84c8" strokeWidth={1} strokeDasharray="3,3" opacity={0.7} />
+        );
+      })()}
       {candles.length > 0 && (() => {
         const last = candles[candles.length - 1];
         const y = toY(last.close);
         const isGreen = last.close >= last.open;
         return (
           <g>
-            <line x1={padding.left} x2={padding.left + chartW} y1={y} y2={y} stroke={isGreen ? "#00d084" : "#ff4757"} strokeWidth={1} strokeDasharray="4,3" opacity={0.6} />
-            <rect x={padding.left + chartW - 2} y={y - 9} width={52} height={16} rx={3} fill={isGreen ? "#00d084" : "#ff4757"} />
-            <text x={padding.left + chartW + 24} y={y + 4} textAnchor="middle" fill="#0a0f14" fontSize={9} fontFamily="'Courier New', monospace" fontWeight="bold">{last.close.toFixed(2)}</text>
+            <line x1={padding.left} x2={padding.left + chartW} y1={y} y2={y} stroke={isGreen ? "#00d084" : "#ff4757"} strokeWidth={1} strokeDasharray="4,3" opacity={0.5} />
           </g>
         );
       })()}
-      <text x={padding.left + chartW / 2} y={height - 4} textAnchor="middle" fill="#2d4a5f" fontSize={9} fontFamily="monospace">{candles.length} candles | 1H TF</text>
     </svg>
   );
 }
 
-// Chart Generation
-function generateCandles(scenario) {
-  const patterns = {
-    uptrend_pullback: () => {
-      let price = 100 + Math.random() * 50;
-      const candles = [];
-      for (let i = 0; i < 18; i++) {
-        const body = 0.3 + Math.random() * 1.2;
-        const open = price; const close = price + body;
-        candles.push({ open, close, high: close + Math.random() * 0.5, low: open - Math.random() * 0.3 });
-        price = close;
-      }
-      for (let i = 0; i < 5; i++) {
-        const body = 0.2 + Math.random() * 0.9;
-        const open = price; const close = price - body;
-        candles.push({ open, close, high: open + Math.random() * 0.3, low: close - Math.random() * 0.5 });
-        price = close;
-      }
-      return candles;
-    },
-    downtrend_pullback: () => {
-      let price = 150 + Math.random() * 50;
-      const candles = [];
-      for (let i = 0; i < 18; i++) {
-        const body = 0.3 + Math.random() * 1.2;
-        const open = price; const close = price - body;
-        candles.push({ open, close, high: open + Math.random() * 0.3, low: close - Math.random() * 0.5 });
-        price = close;
-      }
-      for (let i = 0; i < 5; i++) {
-        const body = 0.2 + Math.random() * 0.9;
-        const open = price; const close = price + body;
-        candles.push({ open, close, high: close + Math.random() * 0.5, low: open - Math.random() * 0.3 });
-        price = close;
-      }
-      return candles;
-    },
-    range_breakout_up: () => {
-      let price = 100 + Math.random() * 30;
-      const candles = [];
-      for (let i = 0; i < 16; i++) {
-        const dir = Math.random() > 0.5 ? 1 : -1;
-        const body = Math.random() * 0.7;
-        const open = price; const close = price + dir * body;
-        candles.push({ open, close, high: Math.max(open, close) + Math.random() * 0.4, low: Math.min(open, close) - Math.random() * 0.4 });
-        price = close;
-      }
-      for (let i = 0; i < 7; i++) {
-        const body = 0.5 + Math.random() * 1.5;
-        const open = price; const close = price + body;
-        candles.push({ open, close, high: close + Math.random() * 0.4, low: open - Math.random() * 0.2 });
-        price = close;
-      }
-      return candles;
-    },
-    range_breakout_down: () => {
-      let price = 150 + Math.random() * 30;
-      const candles = [];
-      for (let i = 0; i < 16; i++) {
-        const dir = Math.random() > 0.5 ? 1 : -1;
-        const body = Math.random() * 0.7;
-        const open = price; const close = price + dir * body;
-        candles.push({ open, close, high: Math.max(open, close) + Math.random() * 0.4, low: Math.min(open, close) - Math.random() * 0.4 });
-        price = close;
-      }
-      for (let i = 0; i < 7; i++) {
-        const body = 0.5 + Math.random() * 1.5;
-        const open = price; const close = price - body;
-        candles.push({ open, close, high: open + Math.random() * 0.2, low: close - Math.random() * 0.4 });
-        price = close;
-      }
-      return candles;
-    },
-    liquidity_sweep_buy: () => {
-      let price = 120 + Math.random() * 30;
-      const candles = [];
-      for (let i = 0; i < 12; i++) {
-        const body = 0.2 + Math.random() * 1.0;
-        const open = price; const close = price - body;
-        candles.push({ open, close, high: open + Math.random() * 0.3, low: close - Math.random() * 0.5 });
-        price = close;
-      }
-      const sweepOpen = price; const sweepClose = price + 1.5;
-      candles.push({ open: sweepOpen, close: sweepClose, high: sweepClose + 0.5, low: sweepOpen - 3 });
-      price = sweepClose;
-      for (let i = 0; i < 7; i++) {
-        const body = 0.3 + Math.random() * 1.0;
-        const open = price; const close = price + body;
-        candles.push({ open, close, high: close + Math.random() * 0.4, low: open - Math.random() * 0.2 });
-        price = close;
-      }
-      return candles;
-    },
-    liquidity_sweep_sell: () => {
-      let price = 120 + Math.random() * 30;
-      const candles = [];
-      for (let i = 0; i < 12; i++) {
-        const body = 0.2 + Math.random() * 1.0;
-        const open = price; const close = price + body;
-        candles.push({ open, close, high: close + Math.random() * 0.5, low: open - Math.random() * 0.3 });
-        price = close;
-      }
-      const sweepOpen = price; const sweepClose = price - 1.5;
-      candles.push({ open: sweepOpen, close: sweepClose, high: sweepOpen + 3, low: sweepClose - 0.5 });
-      price = sweepClose;
-      for (let i = 0; i < 7; i++) {
-        const body = 0.3 + Math.random() * 1.0;
-        const open = price; const close = price - body;
-        candles.push({ open, close, high: open + Math.random() * 0.2, low: close - Math.random() * 0.4 });
-        price = close;
-      }
-      return candles;
-    },
-    fvg_retest: () => {
-      let price = 100 + Math.random() * 40;
-      const candles = [];
-      for (let i = 0; i < 10; i++) {
-        const body = 0.2 + Math.random() * 0.8;
-        const open = price; const close = price + body;
-        candles.push({ open, close, high: close + Math.random() * 0.3, low: open - Math.random() * 0.2 });
-        price = close;
-      }
-      candles.push({ open: price, close: price + 4, high: price + 4.5, low: price - 0.2 });
-      price += 4;
-      for (let i = 0; i < 5; i++) {
-        const body = 0.1 + Math.random() * 0.6;
-        const open = price; const close = price + body;
-        candles.push({ open, close, high: close + Math.random() * 0.3, low: open - Math.random() * 0.2 });
-        price = close;
-      }
-      for (let i = 0; i < 6; i++) {
-        const body = 0.2 + Math.random() * 0.7;
-        const open = price; const close = price - body;
-        candles.push({ open, close, high: open + Math.random() * 0.2, low: close - Math.random() * 0.3 });
-        price = close;
-      }
-      return candles;
-    },
-  };
-  const keys = Object.keys(patterns);
-  const key = scenario || keys[Math.floor(Math.random() * keys.length)];
-  return { candles: patterns[key](), scenario: key };
+async function fetchRound() {
+  const r = await fetch("/api/random-chart");
+  if (!r.ok) throw new Error("api_fail");
+  const data = await r.json();
+  if (!data.candles || !data.futureCandles || !data.correct) throw new Error("bad_payload");
+  return data;
 }
-
-const SCENARIO_META = {
-  uptrend_pullback: { correct: "BUY", hint: "Uptrend com pullback" },
-  downtrend_pullback: { correct: "SELL", hint: "Downtrend com pullback" },
-  range_breakout_up: { correct: "BUY", hint: "Rompimento de range pra cima" },
-  range_breakout_down: { correct: "SELL", hint: "Rompimento de range pra baixo" },
-  liquidity_sweep_buy: { correct: "BUY", hint: "Sweep de liquidez (long)" },
-  liquidity_sweep_sell: { correct: "SELL", hint: "Sweep de liquidez (short)" },
-  fvg_retest: { correct: "BUY", hint: "Retest de Fair Value Gap" },
-};
 
 const LEVELS = [
   { level: 1, name: "Novato", xpRequired: 0, color: "#4a6278" },
@@ -226,51 +98,45 @@ function getCurrentLevel(xp) {
   for (const l of LEVELS) { if (xp >= l.xpRequired) lvl = l; }
   return lvl;
 }
-
 function getNextLevel(xp) {
   for (const l of LEVELS) { if (xp < l.xpRequired) return l; }
   return null;
 }
 
-const STORAGE_KEY = "chart_sniper_v1";
-
+const STORAGE_KEY = "chart_sniper_v2";
 function loadState() {
   if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch { return null; }
+  try { const raw = window.localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; }
 }
-
 function saveState(state) {
   if (typeof window === "undefined") return;
   try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
 }
 
-async function getAIFeedback({ scenario, userChoice, isCorrect, streak }) {
-  const meta = SCENARIO_META[scenario];
+async function getAIFeedback({ symbol, interval, userChoice, isCorrect, streak, moveBps, correct }) {
   try {
     const res = await fetch("/api/feedback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ scenario, userChoice, isCorrect, streak, hint: meta.hint, correct: meta.correct }),
+      body: JSON.stringify({ symbol, interval, userChoice, isCorrect, streak, moveBps, correct }),
     });
     if (!res.ok) throw new Error("api_error");
     const data = await res.json();
     if (data?.feedback) return data.feedback;
     throw new Error("no_feedback");
   } catch {
-    if (userChoice === "TIMEOUT") return `Tempo esgotado. Setup: ${meta.hint}. Decisao correta era ${meta.correct}.`;
+    if (userChoice === "TIMEOUT") return `Tempo esgotado. ${symbol} ${interval}: o correto era ${correct} (move ${moveBps}bps).`;
     return isCorrect
-      ? `Bom read! ${meta.hint} - entrada coerente com a estrutura.`
-      : `Setup era ${meta.hint}. Operacao correta: ${meta.correct}. Observe a estrutura antes de clicar.`;
+      ? `Bom read em ${symbol} ${interval}. Move foi ${moveBps}bps a favor.`
+      : `${symbol} ${interval}: o correto era ${correct} (move ${moveBps}bps). Observe a estrutura antes de clicar.`;
   }
 }
 
 export default function TradingGame() {
   const [screen, setScreen] = useState("home");
   const [chartData, setChartData] = useState(null);
+  const [loadingChart, setLoadingChart] = useState(false);
+  const [chartError, setChartError] = useState(null);
   const [xp, setXp] = useState(0);
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
@@ -308,22 +174,31 @@ export default function TradingGame() {
   const nextLevel = getNextLevel(xp);
   const xpProgress = nextLevel ? ((xp - currentLevel.xpRequired) / (nextLevel.xpRequired - currentLevel.xpRequired)) * 100 : 100;
 
-  const startRound = useCallback(() => {
-    const { candles, scenario } = generateCandles();
-    setChartData({ candles, scenario });
+  const startRound = useCallback(async () => {
+    setScreen("game");
     setLastResult(null);
     setAiFeedback("");
-    setTimer(30);
-    setTimerActive(true);
-    setScreen("game");
+    setChartData(null);
+    setChartError(null);
+    setLoadingChart(true);
+    try {
+      const data = await fetchRound();
+      setChartData(data);
+      setLoadingChart(false);
+      setTimer(30);
+      setTimerActive(true);
+    } catch (err) {
+      setChartError("Falha ao buscar candles da Binance. Tente novamente.");
+      setLoadingChart(false);
+    }
   }, []);
 
   const handleAnswer = useCallback(async (choice) => {
     if (!chartData || lastResult) return;
     clearInterval(timerRef.current);
     setTimerActive(false);
-    const meta = SCENARIO_META[chartData.scenario];
-    const isCorrect = choice !== "TIMEOUT" && choice === meta.correct;
+    const correctSide = chartData.correct;
+    const isCorrect = choice !== "TIMEOUT" && choice === correctSide;
     const xpEarned = choice === "TIMEOUT" ? 0 : isCorrect ? 20 + streak * 5 : 5;
     const newStreak = isCorrect ? streak + 1 : 0;
     const newXp = xp + xpEarned;
@@ -334,15 +209,23 @@ export default function TradingGame() {
       setLevelUpFlash(newLevelObj);
       setTimeout(() => setLevelUpFlash(null), 2400);
     }
-    setLastResult({ isCorrect, choice, xpEarned, correct: meta.correct, hint: meta.hint });
+    setLastResult({
+      isCorrect,
+      choice,
+      xpEarned,
+      correct: correctSide,
+      symbol: chartData.symbol,
+      interval: chartData.interval,
+      moveBps: chartData.moveBps,
+    });
     setXp(newXp);
     setStreak(newStreak);
     setBestStreak(newBest);
     setTotalAnswered((t) => t + 1);
     if (isCorrect) setTotalCorrect((t) => t + 1);
-    setHistory((h) => [{ scenario: meta.hint, choice, correct: meta.correct, isCorrect, xpEarned, ts: Date.now() }, ...h.slice(0, 19)]);
+    setHistory((h) => [{ symbol: chartData.symbol, interval: chartData.interval, choice, correct: correctSide, isCorrect, xpEarned, moveBps: chartData.moveBps, ts: Date.now() }, ...h.slice(0, 19)]);
     setLoadingFeedback(true);
-    const feedback = await getAIFeedback({ scenario: chartData.scenario, userChoice: choice, isCorrect, streak: newStreak });
+    const feedback = await getAIFeedback({ symbol: chartData.symbol, interval: chartData.interval, userChoice: choice, isCorrect, streak: newStreak, moveBps: chartData.moveBps, correct: correctSide });
     setAiFeedback(feedback);
     setLoadingFeedback(false);
   }, [chartData, lastResult, streak, xp, bestStreak]);
@@ -381,7 +264,7 @@ export default function TradingGame() {
             <span style={styles.logoAccent}>CHART</span>
             <span style={styles.logoMain}>SNIPER</span>
           </div>
-          <p style={styles.tagline}>Treine sua leitura de mercado. Suba de nivel.</p>
+          <p style={styles.tagline}>Treine sua leitura. Dados reais da Binance.</p>
           <div style={styles.levelCard}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <span style={{ color: currentLevel.color, fontWeight: 700, fontSize: 13, letterSpacing: 2, textTransform: "uppercase" }}>{currentLevel.name}</span>
@@ -408,7 +291,7 @@ export default function TradingGame() {
           <button style={styles.btnPrimary} onClick={startRound}>INICIAR ROUND</button>
           {totalAnswered > 0 && (<button style={styles.btnSecondary} onClick={() => setScreen("stats")}>VER HISTORICO</button>)}
           <div style={styles.howto}>
-            <p style={{ color: "#2d4a5f", fontSize: 11, margin: 0 }}>Analise o grafico - escolha BUY ou SELL - ganhe XP - suba de nivel</p>
+            <p style={{ color: "#2d4a5f", fontSize: 11, margin: 0 }}>Le 25 candles reais. Adivinhe se o preco subiu ou desceu nos proximos 5.</p>
           </div>
         </div>
       </div>
@@ -440,8 +323,9 @@ export default function TradingGame() {
             ) : (
               history.map((h, i) => (
                 <div key={i} style={{ ...styles.historyItem, borderLeft: `3px solid ${h.isCorrect ? "#00d084" : "#ff4757"}` }}>
-                  <span style={{ color: "#7a9ab0", fontSize: 11, flex: 1 }}>{h.scenario}</span>
+                  <span style={{ color: "#7a9ab0", fontSize: 11, flex: 1 }}>{h.symbol} <span style={{ color: "#3d84c8" }}>{h.interval}</span></span>
                   <span style={{ color: h.isCorrect ? "#00d084" : "#ff4757", fontSize: 11, fontWeight: 700 }}>{h.choice} {h.isCorrect ? "OK" : "X"}</span>
+                  <span style={{ color: h.moveBps >= 0 ? "#00d084" : "#ff4757", fontSize: 10, marginLeft: 8 }}>{h.moveBps >= 0 ? "+" : ""}{h.moveBps}bp</span>
                   <span style={{ color: "#3d84c8", fontSize: 11, marginLeft: 8 }}>+{h.xpEarned}xp</span>
                 </div>
               ))
@@ -454,6 +338,7 @@ export default function TradingGame() {
 
   const timerPct = (timer / 30) * 100;
   const timerColor = timer > 15 ? "#00d084" : timer > 8 ? "#e8a838" : "#ff4757";
+  const allCandles = chartData ? (lastResult ? [...chartData.candles, ...chartData.futureCandles] : chartData.candles) : [];
 
   return (
     <div style={styles.root}>
@@ -469,7 +354,13 @@ export default function TradingGame() {
         )}
         <div style={styles.gameHeader}>
           <button style={styles.backBtn} onClick={() => setScreen("home")}>{"<"}</button>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+            {chartData && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ color: "#e8e8e8", fontWeight: 700, fontSize: 12, letterSpacing: 1 }}>{chartData.symbol}</span>
+                <span style={{ color: "#3d84c8", fontSize: 11 }}>{chartData.interval.toUpperCase()}</span>
+              </div>
+            )}
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ color: "#e8a838", fontSize: 11 }}>STREAK</span>
               <span style={{ color: "#e8a838", fontWeight: 700, fontSize: 13 }}>{streak}</span>
@@ -481,24 +372,40 @@ export default function TradingGame() {
             <div style={{ color: currentLevel.color, fontWeight: 700, fontSize: 11, letterSpacing: 1 }}>{currentLevel.name}</div>
           </div>
         </div>
-        {!lastResult && (
+        {!lastResult && chartData && (
           <div style={styles.timerBarBg}>
             <div style={{ ...styles.timerBarFill, width: `${timerPct}%`, background: timerColor, transition: "width 1s linear, background 0.3s" }} />
             <span style={{ ...styles.timerNum, color: timerColor }}>{timer}s</span>
           </div>
         )}
         <div style={styles.chartBox}>
-          <div style={{ overflowX: "auto" }}>
-            {chartData && (<CandleChart candles={chartData.candles} width={560} height={260} />)}
+          <div style={{ overflowX: "auto", minHeight: 260, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {loadingChart && (
+              <div style={{ color: "#3d84c8", fontSize: 12, letterSpacing: 2, padding: 60, textAlign: "center" }}>
+                <div style={{ ...styles.loadDot, margin: "0 auto 12px" }} />
+                BUSCANDO CHART REAL...
+              </div>
+            )}
+            {chartError && (
+              <div style={{ color: "#ff4757", fontSize: 12, padding: 40, textAlign: "center" }}>
+                {chartError}
+                <div><button style={{ ...styles.btnSecondary, marginTop: 12 }} onClick={startRound}>TENTAR DE NOVO</button></div>
+              </div>
+            )}
+            {chartData && !chartError && (
+              <CandleChart candles={allCandles} width={560} height={260} futureCount={lastResult ? chartData.futureCandles.length : 0} />
+            )}
           </div>
-          <div style={styles.chartLabel}>Onde o preco vai?</div>
+          <div style={styles.chartLabel}>
+            {lastResult ? `Movimento: ${lastResult.moveBps >= 0 ? "+" : ""}${lastResult.moveBps}bp em ${chartData.futureCandles.length} candles` : "Onde o preco vai nos proximos 5 candles?"}
+          </div>
         </div>
-        {!lastResult ? (
+        {!lastResult && chartData && !loadingChart && !chartError ? (
           <div style={styles.actionRow}>
             <button style={styles.btnBuy} onClick={() => handleAnswer("BUY")}>BUY / LONG</button>
             <button style={styles.btnSell} onClick={() => handleAnswer("SELL")}>SELL / SHORT</button>
           </div>
-        ) : (
+        ) : lastResult ? (
           <div style={styles.resultBox}>
             <div style={{ ...styles.resultBadge, background: lastResult.isCorrect ? "rgba(0,208,132,0.1)" : "rgba(255,71,87,0.1)", border: `1px solid ${lastResult.isCorrect ? "#00d084" : "#ff4757"}` }}>
               <span style={{ fontSize: 22 }}>{lastResult.isCorrect ? "OK" : "X"}</span>
@@ -506,8 +413,8 @@ export default function TradingGame() {
                 <div style={{ color: lastResult.isCorrect ? "#00d084" : "#ff4757", fontWeight: 700, fontSize: 13 }}>
                   {lastResult.choice === "TIMEOUT" ? "TEMPO ESGOTADO" : lastResult.isCorrect ? "CORRETO!" : "ERRADO"}
                 </div>
-                <div style={{ color: "#4a6278", fontSize: 11 }}>Setup: <span style={{ color: "#7a9ab0" }}>{lastResult.hint}</span></div>
-                {!lastResult.isCorrect && (<div style={{ color: "#4a6278", fontSize: 11 }}>Correto era: <span style={{ color: "#e8a838", fontWeight: 700 }}>{lastResult.correct}</span></div>)}
+                <div style={{ color: "#4a6278", fontSize: 11 }}>{lastResult.symbol} <span style={{ color: "#7a9ab0" }}>{lastResult.interval}</span></div>
+                {!lastResult.isCorrect && (<div style={{ color: "#4a6278", fontSize: 11 }}>Correto: <span style={{ color: "#e8a838", fontWeight: 700 }}>{lastResult.correct}</span> ({lastResult.moveBps >= 0 ? "+" : ""}{lastResult.moveBps}bp)</div>)}
               </div>
               <div style={{ marginLeft: "auto", textAlign: "right" }}>
                 <div style={{ color: "#3d84c8", fontWeight: 700, fontSize: 16 }}>+{lastResult.xpEarned}</div>
@@ -529,7 +436,7 @@ export default function TradingGame() {
               <button style={{ ...styles.btnSecondary, flex: 1 }} onClick={() => setScreen("home")}>HOME</button>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );
@@ -553,13 +460,13 @@ const styles = {
   btnSecondary: { background: "transparent", color: "#4a6278", border: "1px solid #1a2d3d", borderRadius: 8, padding: "12px 20px", fontFamily: "'Courier New', monospace", fontSize: 11, letterSpacing: 2, cursor: "pointer", textTransform: "uppercase" },
   howto: { border: "1px solid #0e1e2e", borderRadius: 6, padding: "10px 14px", textAlign: "center" },
   gameWrap: { width: "100%", maxWidth: 600, padding: "16px 12px 20px", display: "flex", flexDirection: "column", gap: 12, position: "relative" },
-  gameHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 4px" },
+  gameHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 4px", flexWrap: "wrap", gap: 8 },
   backBtn: { background: "transparent", color: "#4a6278", border: "1px solid #1a2d3d", borderRadius: 6, padding: "6px 12px", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: 14 },
   timerBarBg: { height: 28, background: "#0a1420", border: "1px solid #0e1e2e", borderRadius: 6, overflow: "hidden", position: "relative", display: "flex", alignItems: "center" },
   timerBarFill: { position: "absolute", left: 0, top: 0, height: "100%", opacity: 0.25 },
   timerNum: { position: "absolute", right: 10, fontWeight: 700, fontSize: 12, letterSpacing: 1 },
   chartBox: { background: "#060e18", border: "1px solid #0e1e2e", borderRadius: 10, padding: "12px 8px 4px", overflow: "hidden" },
-  chartLabel: { color: "#1a2d3d", fontSize: 10, textAlign: "center", letterSpacing: 3, textTransform: "uppercase", padding: "6px 0 2px" },
+  chartLabel: { color: "#1a2d3d", fontSize: 10, textAlign: "center", letterSpacing: 2, textTransform: "uppercase", padding: "6px 0 2px" },
   actionRow: { display: "flex", gap: 10 },
   btnBuy: { flex: 1, padding: "18px", background: "rgba(0,208,132,0.08)", border: "2px solid #00d084", borderRadius: 10, color: "#00d084", fontFamily: "'Courier New', monospace", fontWeight: 700, fontSize: 15, letterSpacing: 2, cursor: "pointer" },
   btnSell: { flex: 1, padding: "18px", background: "rgba(255,71,87,0.08)", border: "2px solid #ff4757", borderRadius: 10, color: "#ff4757", fontFamily: "'Courier New', monospace", fontWeight: 700, fontSize: 15, letterSpacing: 2, cursor: "pointer" },
