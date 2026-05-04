@@ -9,7 +9,7 @@ const INTERVALS = [
   { sec: 21600, label: "6h" },
   { sec: 86400, label: "1d" },
 ];
-const VISIBLE = 25;
+const VISIBLE = 75;
 const FUTURE = 15;
 
 export default async function handler(req, res) {

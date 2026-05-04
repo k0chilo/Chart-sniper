@@ -291,7 +291,7 @@ export default function TradingGame() {
           <button style={styles.btnPrimary} onClick={startRound}>INICIAR ROUND</button>
           {totalAnswered > 0 && (<button style={styles.btnSecondary} onClick={() => setScreen("stats")}>VER HISTORICO</button>)}
           <div style={styles.howto}>
-            <p style={{ color: "#2d4a5f", fontSize: 11, margin: 0 }}>Le 25 candles reais. Adivinhe se o preco subiu ou desceu nos proximos 15.</p>
+            <p style={{ color: "#2d4a5f", fontSize: 11, margin: 0 }}>Le 75 candles reais. Adivinhe se o preco subiu ou desceu nos proximos 15.</p>
           </div>
         </div>
       </div>
@@ -355,7 +355,7 @@ export default function TradingGame() {
         <div style={styles.gameHeader}>
           <button style={styles.backBtn} onClick={() => setScreen("home")}>{"<"}</button>
           <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-            {chartData && (
+            {chartData && lastResult && (
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span style={{ color: "#e8e8e8", fontWeight: 700, fontSize: 12, letterSpacing: 1 }}>{chartData.symbol}</span>
                 <span style={{ color: "#3d84c8", fontSize: 11 }}>{chartData.interval.toUpperCase()}</span>
@@ -393,7 +393,7 @@ export default function TradingGame() {
               </div>
             )}
             {chartData && !chartError && (
-              <CandleChart candles={allCandles} width={560} height={260} futureCount={lastResult ? chartData.futureCandles.length : 0} />
+              <CandleChart candles={allCandles} width={700} height={260} futureCount={lastResult ? chartData.futureCandles.length : 0} />
             )}
           </div>
           <div style={styles.chartLabel}>
