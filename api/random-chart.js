@@ -1,59 +1,108 @@
-// Coinbase Exchange API - publica e acessivel de IPs US (Vercel)
-// Klines: GET /products/{product}/candles?granularity={seconds}
-// Returns: [[time, low, high, open, close, volume], ...] (mais recente primeiro)
+// Yahoo Finance unofficial API
+// Suporta: forex majors, metais (XAU/XAG via futuros), crypto, indices
 
-const SYMBOLS = ["BTC-USD","ETH-USD","SOL-USD","XRP-USD","ADA-USD","AVAX-USD","DOGE-USD","LINK-USD","DOT-USD","ATOM-USD","LTC-USD","BCH-USD","NEAR-USD","ARB-USD","OP-USD","SUI-USD","APT-USD"];
-// Granularity em segundos -> label
-const INTERVALS = [
-  { sec: 3600, label: "1h" },
-  { sec: 21600, label: "6h" },
-  { sec: 86400, label: "1d" },
+const ASSETS = [
+  { sym: "EURUSD=X", label: "EUR/USD" },
+  { sym: "GBPUSD=X", label: "GBP/USD" },
+  { sym: "USDJPY=X", label: "USD/JPY" },
+  { sym: "USDCHF=X", label: "USD/CHF" },
+  { sym: "AUDUSD=X", label: "AUD/USD" },
+  { sym: "USDCAD=X", label: "USD/CAD" },
+  { sym: "NZDUSD=X", label: "NZD/USD" },
+  { sym: "GC=F", label: "XAU/USD" },
+  { sym: "SI=F", label: "XAG/USD" },
+  { sym: "BTC-USD", label: "BTC/USD" },
+  { sym: "ETH-USD", label: "ETH/USD" },
+  { sym: "SOL-USD", label: "SOL/USD" },
+  { sym: "XRP-USD", label: "XRP/USD" },
+  { sym: "^NDX", label: "NASDAQ" },
 ];
+
+// Yahoo intervals nativos: 1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d
+// 4h nao existe nativo, vamos agregar de 60m com factor=4
+const INTERVALS = [
+  { yahoo: "5m", label: "5M", range: "5d" },
+  { yahoo: "15m", label: "15M", range: "1mo" },
+  { yahoo: "30m", label: "30M", range: "1mo" },
+  { yahoo: "60m", label: "1H", range: "2y" },
+  { yahoo: "60m", label: "4H", range: "2y", agg: 4 },
+  { yahoo: "1d", label: "1D", range: "10y" },
+];
+
 const VISIBLE = 75;
 const FUTURE = 15;
 
+function aggregateCandles(candles, factor) {
+  const out = [];
+  for (let i = 0; i < candles.length; i += factor) {
+    const g = candles.slice(i, i + factor);
+    if (g.length < factor) continue;
+    out.push({
+      open: g[0].open,
+      high: Math.max(...g.map(c => c.high)),
+      low: Math.min(...g.map(c => c.low)),
+      close: g[g.length - 1].close,
+      ts: g[0].ts,
+    });
+  }
+  return out;
+}
+
 export default async function handler(req, res) {
-  const symbol = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+  const asset = ASSETS[Math.floor(Math.random() * ASSETS.length)];
   const ivl = INTERVALS[Math.floor(Math.random() * INTERVALS.length)];
 
   try {
-    const url = `https://api.exchange.coinbase.com/products/${symbol}/candles?granularity=${ivl.sec}`;
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(asset.sym)}?interval=${ivl.yahoo}&range=${ivl.range}`;
     const r = await fetch(url, {
-      headers: { "User-Agent": "chart-sniper/1.0", "Accept": "application/json" },
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+        "Accept": "application/json",
+      },
     });
     if (!r.ok) {
-      return res.status(502).json({ error: "coinbase_http", status: r.status, symbol, interval: ivl.label });
+      return res.status(502).json({ error: "yahoo_http", status: r.status, sym: asset.sym, ivl: ivl.label });
     }
     const data = await r.json();
-    if (!Array.isArray(data) || data.length < VISIBLE + FUTURE + 5) {
-      return res.status(502).json({ error: "not_enough_candles", got: Array.isArray(data) ? data.length : 0 });
+    const result = data?.chart?.result?.[0];
+    if (!result) return res.status(502).json({ error: "no_result", sym: asset.sym });
+    const ts = result.timestamp;
+    const q = result.indicators?.quote?.[0];
+    if (!ts || !q) return res.status(502).json({ error: "bad_format" });
+
+    let candles = [];
+    for (let i = 0; i < ts.length; i++) {
+      const o = q.open[i], h = q.high[i], l = q.low[i], c = q.close[i];
+      if (o == null || h == null || l == null || c == null) continue;
+      candles.push({ open: o, high: h, low: l, close: c, ts: ts[i] * 1000 });
     }
 
-    // Coinbase retorna mais recente primeiro - inverter pra ordem cronologica
-    const sorted = [...data].sort((a, b) => a[0] - b[0]);
+    if (ivl.agg) candles = aggregateCandles(candles, ivl.agg);
 
-    const maxStart = sorted.length - VISIBLE - FUTURE - 1;
+    if (candles.length < VISIBLE + FUTURE + 5) {
+      return res.status(502).json({ error: "not_enough_candles", got: candles.length, sym: asset.sym, ivl: ivl.label });
+    }
+
+    const maxStart = candles.length - VISIBLE - FUTURE - 1;
     const start = Math.floor(Math.random() * maxStart);
-    const window = sorted.slice(start, start + VISIBLE + FUTURE);
+    const window = candles.slice(start, start + VISIBLE + FUTURE);
 
-    // Coinbase: [time, low, high, open, close, volume]
-    const toCandle = (k) => ({
-      open: parseFloat(k[3]),
-      high: parseFloat(k[2]),
-      low: parseFloat(k[1]),
-      close: parseFloat(k[4]),
-      ts: k[0] * 1000,
-    });
+    const visible = window.slice(0, VISIBLE);
+    const futureCandles = window.slice(VISIBLE);
 
-    const candles = window.slice(0, VISIBLE).map(toCandle);
-    const futureCandles = window.slice(VISIBLE).map(toCandle);
-
-    const lastVisible = candles[candles.length - 1].close;
+    const lastVisible = visible[visible.length - 1].close;
     const lastFuture = futureCandles[futureCandles.length - 1].close;
     const moveBps = Math.round(((lastFuture - lastVisible) / lastVisible) * 10000);
     const correct = lastFuture > lastVisible ? "BUY" : "SELL";
 
-    return res.status(200).json({ symbol, interval: ivl.label, candles, futureCandles, correct, moveBps });
+    return res.status(200).json({
+      symbol: asset.label,
+      interval: ivl.label,
+      candles: visible,
+      futureCandles,
+      correct,
+      moveBps,
+    });
   } catch (err) {
     return res.status(500).json({ error: "fetch_failed", detail: String(err?.message || err) });
   }

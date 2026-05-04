@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-function CandleChart({ candles, width = 560, height = 260, futureCount = 0 }) {
-  const padding = { top: 16, right: 16, bottom: 28, left: 60 };
+function CandleChart({ candles, width = 700, height = 290, futureCount = 0 }) {
+  const padding = { top: 32, right: 70, bottom: 28, left: 60 };
   const chartW = width - padding.left - padding.right;
   const chartH = height - padding.top - padding.bottom;
 
@@ -9,9 +9,9 @@ function CandleChart({ candles, width = 560, height = 260, futureCount = 0 }) {
   const minP = Math.min(...allPrices);
   const maxP = Math.max(...allPrices);
   const range = maxP - minP || 1;
-  const pad = range * 0.08;
+  const pad = range * 0.1;
   const toY = (p) => padding.top + ((maxP + pad - p) / (range + 2 * pad)) * chartH;
-  const candleW = Math.max(5, Math.floor(chartW / candles.length) - 3);
+  const candleW = Math.max(5, Math.floor(chartW / candles.length) - 2);
 
   const levels = 5;
   const priceLines = Array.from({ length: levels }, (_, i) =>
@@ -19,57 +19,107 @@ function CandleChart({ candles, width = 560, height = 260, futureCount = 0 }) {
   ).reverse();
 
   const fmtPrice = (p) => {
+    if (p == null) return "";
     if (p >= 1000) return p.toFixed(1);
     if (p >= 1) return p.toFixed(3);
     return p.toFixed(5);
   };
 
   const visibleCount = candles.length - futureCount;
+  const candleX = (i) => padding.left + (i / candles.length) * chartW + chartW / candles.length / 2;
+
+  const dividerX = futureCount > 0 ? padding.left + (visibleCount / candles.length) * chartW : null;
+  const entryCandle = futureCount > 0 ? candles[visibleCount - 1] : null;
+  const exitCandle = futureCount > 0 ? candles[candles.length - 1] : null;
+  const entryPrice = entryCandle?.close;
+  const exitPrice = exitCandle?.close;
+  const movedUp = exitPrice != null && entryPrice != null && exitPrice > entryPrice;
+  const exitColor = movedUp ? "#00d084" : "#ff4757";
+  const lastCandleX = candles.length > 0 ? candleX(candles.length - 1) : 0;
 
   return (
     <svg width={width} height={height} style={{ display: "block" }}>
+      {futureCount > 0 && dividerX != null && (
+        <rect x={dividerX} y={padding.top} width={padding.left + chartW - dividerX} height={chartH}
+              fill="#0e1e2e" fillOpacity={0.35} />
+      )}
+
       {priceLines.map((p, i) => (
         <g key={i}>
-          <line x1={padding.left} x2={padding.left + chartW} y1={toY(p)} y2={toY(p)} stroke="#1e2d3d" strokeWidth={1} />
-          <text x={padding.left - 6} y={toY(p) + 4} textAnchor="end" fill="#4a6278" fontSize={9} fontFamily="'Courier New', monospace">{fmtPrice(p)}</text>
+          <line x1={padding.left} x2={padding.left + chartW} y1={toY(p)} y2={toY(p)}
+                stroke="#1a2d3d" strokeWidth={1} />
+          <text x={padding.left - 6} y={toY(p) + 4} textAnchor="end"
+                fill="#4a6278" fontSize={9} fontFamily="'Courier New', monospace">
+            {fmtPrice(p)}
+          </text>
         </g>
       ))}
-      {futureCount > 0 && (() => {
-        const xStart = padding.left + (visibleCount / candles.length) * chartW;
-        return (
-          <rect x={xStart} y={padding.top} width={chartW - (xStart - padding.left)} height={chartH} fill="#0e1e2e" fillOpacity={0.35} />
-        );
-      })()}
+
       {candles.map((c, i) => {
-        const x = padding.left + (i / candles.length) * chartW + chartW / candles.length / 2;
+        const x = candleX(i);
         const isGreen = c.close >= c.open;
         const isFuture = i >= visibleCount;
         const baseColor = isGreen ? "#00d084" : "#ff4757";
-        const opacity = isFuture ? 0.55 : 0.9;
+        const opacity = isFuture ? 0.75 : 0.95;
         const bodyTop = toY(Math.max(c.open, c.close));
         const bodyBot = toY(Math.min(c.open, c.close));
         const bodyH = Math.max(1, bodyBot - bodyTop);
         return (
           <g key={i}>
-            <line x1={x} x2={x} y1={toY(c.high)} y2={toY(c.low)} stroke={baseColor} strokeWidth={1.2} opacity={opacity} />
-            <rect x={x - candleW / 2} y={bodyTop} width={candleW} height={bodyH} fill={baseColor} fillOpacity={opacity} stroke={baseColor} strokeWidth={0.5} />
+            <line x1={x} x2={x} y1={toY(c.high)} y2={toY(c.low)}
+                  stroke={baseColor} strokeWidth={1.4} opacity={opacity} />
+            <rect x={x - candleW / 2} y={bodyTop} width={candleW} height={bodyH}
+                  fill={baseColor} fillOpacity={opacity} stroke={baseColor} strokeWidth={0.5} />
           </g>
         );
       })}
-      {futureCount > 0 && (() => {
-        const xStart = padding.left + (visibleCount / candles.length) * chartW;
-        return (
-          <line x1={xStart} x2={xStart} y1={padding.top} y2={padding.top + chartH} stroke="#3d84c8" strokeWidth={1} strokeDasharray="3,3" opacity={0.7} />
-        );
-      })()}
-      {candles.length > 0 && (() => {
+
+      {futureCount > 0 && entryPrice != null && (
+        <g>
+          <line x1={dividerX} x2={dividerX} y1={padding.top} y2={padding.top + chartH}
+                stroke="#e8a838" strokeWidth={2} strokeDasharray="6,3" />
+          <line x1={padding.left} x2={padding.left + chartW}
+                y1={toY(entryPrice)} y2={toY(entryPrice)}
+                stroke="#e8a838" strokeWidth={1} strokeDasharray="2,3" opacity={0.55} />
+          <rect x={dividerX - 36} y={padding.top - 24} width={72} height={18} rx={3} fill="#e8a838" />
+          <text x={dividerX} y={padding.top - 11} textAnchor="middle"
+                fill="#0a0f14" fontSize={10} fontFamily="'Courier New', monospace" fontWeight="bold">
+            ENTRADA
+          </text>
+          <rect x={padding.left + chartW + 2} y={toY(entryPrice) - 8} width={64} height={16} rx={3} fill="#e8a838" />
+          <text x={padding.left + chartW + 34} y={toY(entryPrice) + 4} textAnchor="middle"
+                fill="#0a0f14" fontSize={9} fontFamily="'Courier New', monospace" fontWeight="bold">
+            {fmtPrice(entryPrice)}
+          </text>
+        </g>
+      )}
+
+      {futureCount > 0 && exitPrice != null && (
+        <g>
+          <line x1={dividerX} x2={padding.left + chartW}
+                y1={toY(exitPrice)} y2={toY(exitPrice)}
+                stroke={exitColor} strokeWidth={2} />
+          <rect x={lastCandleX - 22} y={padding.top - 24} width={44} height={18} rx={3} fill={exitColor} />
+          <text x={lastCandleX} y={padding.top - 11} textAnchor="middle"
+                fill="#0a0f14" fontSize={10} fontFamily="'Courier New', monospace" fontWeight="bold">
+            FIM
+          </text>
+          <rect x={padding.left + chartW + 2} y={toY(exitPrice) - 8} width={64} height={16} rx={3} fill={exitColor} />
+          <text x={padding.left + chartW + 34} y={toY(exitPrice) + 4} textAnchor="middle"
+                fill="#0a0f14" fontSize={9} fontFamily="'Courier New', monospace" fontWeight="bold">
+            {fmtPrice(exitPrice)}
+          </text>
+        </g>
+      )}
+
+      {futureCount === 0 && candles.length > 0 && (() => {
         const last = candles[candles.length - 1];
         const y = toY(last.close);
         const isGreen = last.close >= last.open;
         return (
-          <g>
-            <line x1={padding.left} x2={padding.left + chartW} y1={y} y2={y} stroke={isGreen ? "#00d084" : "#ff4757"} strokeWidth={1} strokeDasharray="4,3" opacity={0.5} />
-          </g>
+          <line x1={padding.left} x2={padding.left + chartW} y1={y} y2={y}
+                stroke={isGreen ? "#00d084" : "#ff4757"} strokeWidth={1}
+                strokeDasharray="4,3" opacity={0.5} />
         );
       })()}
     </svg>
@@ -269,7 +319,7 @@ export default function TradingGame() {
             <span style={styles.logoAccent}>CHART</span>
             <span style={styles.logoMain}>SNIPER</span>
           </div>
-          <p style={styles.tagline}>Treine sua leitura. Dados reais da Binance.</p>
+          <p style={styles.tagline}>Treine sua leitura. Forex, crypto e indices.</p>
           <div style={styles.levelCard}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <span style={{ color: currentLevel.color, fontWeight: 700, fontSize: 13, letterSpacing: 2, textTransform: "uppercase" }}>{currentLevel.name}</span>
@@ -398,7 +448,7 @@ export default function TradingGame() {
               </div>
             )}
             {chartData && !chartError && (
-              <CandleChart candles={allCandles} width={700} height={260} futureCount={lastResult ? chartData.futureCandles.length : 0} />
+              <CandleChart candles={allCandles} width={700} height={290} futureCount={lastResult ? chartData.futureCandles.length : 0} />
             )}
           </div>
           <div style={styles.chartLabel}>
