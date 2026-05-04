@@ -10,7 +10,7 @@ const INTERVALS = [
   { sec: 86400, label: "1d" },
 ];
 const VISIBLE = 25;
-const FUTURE = 5;
+const FUTURE = 15;
 
 export default async function handler(req, res) {
   const symbol = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
