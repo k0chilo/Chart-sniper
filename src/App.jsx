@@ -343,7 +343,7 @@ export default function TradingGame() {
 
   const timerPct = (timer / 30) * 100;
   const timerColor = timer > 15 ? "#00d084" : timer > 8 ? "#e8a838" : "#ff4757";
-  const allCandles = chartData ? (lastResult ? [...chartData.candles, ...chartData.futureCandles] : chartData.candles) : [];
+  const allCandles = chartData ? (lastResult ? [...chartData.candles.slice(-25), ...chartData.futureCandles] : chartData.candles) : [];
 
   return (
     <div style={styles.root}>
