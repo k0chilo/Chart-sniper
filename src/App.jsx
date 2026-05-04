@@ -151,6 +151,7 @@ export default function TradingGame() {
   const [timerActive, setTimerActive] = useState(false);
   const [levelUpFlash, setLevelUpFlash] = useState(null);
   const timerRef = useRef(null);
+  const chartScrollRef = useRef(null);
 
   useEffect(() => {
     const s = loadState();
@@ -232,6 +233,10 @@ export default function TradingGame() {
 
   const handleAnswerRef = useRef(handleAnswer);
   useEffect(() => { handleAnswerRef.current = handleAnswer; }, [handleAnswer]);
+
+  useEffect(() => {
+    if (lastResult && chartScrollRef.current) chartScrollRef.current.scrollLeft = chartScrollRef.current.scrollWidth;
+  }, [lastResult]);
 
   useEffect(() => {
     if (!timerActive) return;
@@ -379,7 +384,7 @@ export default function TradingGame() {
           </div>
         )}
         <div style={styles.chartBox}>
-          <div style={{ overflowX: "auto", minHeight: 260, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div ref={chartScrollRef} style={{ overflowX: "auto", minHeight: 260, display: "flex", alignItems: "center", justifyContent: "center" }}>
             {loadingChart && (
               <div style={{ color: "#3d84c8", fontSize: 12, letterSpacing: 2, padding: 60, textAlign: "center" }}>
                 <div style={{ ...styles.loadDot, margin: "0 auto 12px" }} />
