@@ -1,5 +1,7 @@
-// Yahoo Finance unofficial API
-// Suporta: forex majors, metais (XAU/XAG via futuros), crypto, indices
+// yahoo-finance2: lida com crumb/cookie automatico, evita rate-limit
+import yahooFinance from "yahoo-finance2";
+
+yahooFinance.suppressNotices(["yahooSurvey"]);
 
 const ASSETS = [
   { sym: "EURUSD=X", label: "EUR/USD" },
@@ -18,15 +20,13 @@ const ASSETS = [
   { sym: "^NDX", label: "NASDAQ" },
 ];
 
-// Yahoo intervals nativos: 1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d
-// 4h nao existe nativo, vamos agregar de 60m com factor=4
 const INTERVALS = [
-  { yahoo: "5m", label: "5M", range: "5d" },
-  { yahoo: "15m", label: "15M", range: "1mo" },
-  { yahoo: "30m", label: "30M", range: "1mo" },
-  { yahoo: "60m", label: "1H", range: "2y" },
-  { yahoo: "60m", label: "4H", range: "2y", agg: 4 },
-  { yahoo: "1d", label: "1D", range: "10y" },
+  { yahoo: "5m", label: "5M", days: 5 },
+  { yahoo: "15m", label: "15M", days: 30 },
+  { yahoo: "30m", label: "30M", days: 30 },
+  { yahoo: "1h", label: "1H", days: 540 },
+  { yahoo: "1h", label: "4H", days: 540, agg: 4 },
+  { yahoo: "1d", label: "1D", days: 3650 },
 ];
 
 const VISIBLE = 75;
@@ -39,8 +39,8 @@ function aggregateCandles(candles, factor) {
     if (g.length < factor) continue;
     out.push({
       open: g[0].open,
-      high: Math.max(...g.map(c => c.high)),
-      low: Math.min(...g.map(c => c.low)),
+      high: Math.max(...g.map((c) => c.high)),
+      low: Math.min(...g.map((c) => c.low)),
       close: g[g.length - 1].close,
       ts: g[0].ts,
     });
@@ -53,29 +53,21 @@ export default async function handler(req, res) {
   const ivl = INTERVALS[Math.floor(Math.random() * INTERVALS.length)];
 
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(asset.sym)}?interval=${ivl.yahoo}&range=${ivl.range}`;
-    const r = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-        "Accept": "application/json",
-      },
+    const period1 = new Date(Date.now() - ivl.days * 24 * 60 * 60 * 1000);
+    const result = await yahooFinance.chart(asset.sym, {
+      period1,
+      interval: ivl.yahoo,
     });
-    if (!r.ok) {
-      return res.status(502).json({ error: "yahoo_http", status: r.status, sym: asset.sym, ivl: ivl.label });
-    }
-    const data = await r.json();
-    const result = data?.chart?.result?.[0];
-    if (!result) return res.status(502).json({ error: "no_result", sym: asset.sym });
-    const ts = result.timestamp;
-    const q = result.indicators?.quote?.[0];
-    if (!ts || !q) return res.status(502).json({ error: "bad_format" });
 
-    let candles = [];
-    for (let i = 0; i < ts.length; i++) {
-      const o = q.open[i], h = q.high[i], l = q.low[i], c = q.close[i];
-      if (o == null || h == null || l == null || c == null) continue;
-      candles.push({ open: o, high: h, low: l, close: c, ts: ts[i] * 1000 });
-    }
+    let candles = (result.quotes || [])
+      .filter((q) => q && q.open != null && q.high != null && q.low != null && q.close != null)
+      .map((q) => ({
+        open: q.open,
+        high: q.high,
+        low: q.low,
+        close: q.close,
+        ts: q.date instanceof Date ? q.date.getTime() : new Date(q.date).getTime(),
+      }));
 
     if (ivl.agg) candles = aggregateCandles(candles, ivl.agg);
 
@@ -104,6 +96,6 @@ export default async function handler(req, res) {
       moveBps,
     });
   } catch (err) {
-    return res.status(500).json({ error: "fetch_failed", detail: String(err?.message || err) });
+    return res.status(500).json({ error: "yfinance_err", detail: String(err?.message || err), sym: asset.sym, ivl: ivl.label });
   }
 }
