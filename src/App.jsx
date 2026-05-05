@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { ChevronLeft, Check, X as XIcon, TrendingUp, TrendingDown, Flame, Trophy, Play, Home as HomeIcon, ArrowRight, BarChart3, RotateCcw, Target, Clock, Award } from "lucide-react";
 
 function fmtDiff(diff) {
   const sign = diff >= 0 ? "+" : "";
@@ -8,8 +9,19 @@ function fmtDiff(diff) {
   return sign + diff.toFixed(5);
 }
 
-function CandleChart({ candles, width = 950, height = 360, futureCount = 0 }) {
-  const padding = { top: 38, right: 92, bottom: 28, left: 72 };
+function fmtDateLabel(ts, intervalLabel) {
+  const d = new Date(ts);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yy = String(d.getFullYear()).slice(2);
+  if (intervalLabel === "1D") return `${dd}/${mm}/${yy}`;
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mn = String(d.getMinutes()).padStart(2, "0");
+  return `${dd}/${mm} ${hh}:${mn}`;
+}
+
+function CandleChart({ candles, width = 950, height = 380, futureCount = 0, watermark, intervalLabel }) {
+  const padding = { top: 38, right: 92, bottom: 42, left: 72 };
   const chartW = width - padding.left - padding.right;
   const chartH = height - padding.top - padding.bottom;
 
@@ -44,15 +56,25 @@ function CandleChart({ candles, width = 950, height = 360, futureCount = 0 }) {
   const exitColor = movedUp ? "#00d084" : "#ff4757";
   const lastCandleX = candles.length > 0 ? candleX(candles.length - 1) : 0;
 
+  // pegar 4 datas pra mostrar no eixo de tempo
+  const dateTicks = candles.length > 0 ? [0, Math.floor(candles.length * 0.33), Math.floor(candles.length * 0.66), candles.length - 1] : [];
+
   return (
     <svg width="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block", maxHeight: height }}>
+      {watermark && (
+        <text x={padding.left + chartW / 2} y={padding.top + chartH / 2 + 18} textAnchor="middle" fontSize={66} fontFamily="'Inter', sans-serif" fontWeight={800} fill="#1a2332" opacity={0.6} style={{ userSelect: "none", pointerEvents: "none" }}>
+          {watermark}
+        </text>
+      )}
       {futureCount > 0 && dividerX != null && (
         <rect x={dividerX} y={padding.top} width={padding.left + chartW - dividerX} height={chartH} fill="#0e1e2e" fillOpacity={0.35} />
       )}
       {priceLines.map((p, i) => (
         <g key={i}>
-          <line x1={padding.left} x2={padding.left + chartW} y1={toY(p)} y2={toY(p)} stroke="#1a2d3d" strokeWidth={1} />
-          <text x={padding.left - 8} y={toY(p) + 4} textAnchor="end" fill="#4a6278" fontSize={10} fontFamily="'Courier New', monospace">{fmtPrice(p)}</text>
+          <line x1={padding.left} x2={padding.left + chartW} y1={toY(p)} y2={toY(p)} stroke="#1a2332" strokeWidth={1} strokeDasharray="2,4" opacity={0.7} />
+          <text x={padding.left - 8} y={toY(p) + 4} textAnchor="end" fill="#5a6a7d" fontSize={10} fontFamily="'JetBrains Mono', monospace">
+            {fmtPrice(p)}
+          </text>
         </g>
       ))}
       {candles.map((c, i) => {
@@ -71,24 +93,38 @@ function CandleChart({ candles, width = 950, height = 360, futureCount = 0 }) {
           </g>
         );
       })}
+      {/* Eixo de tempo */}
+      {dateTicks.map((idx, i) => {
+        const c = candles[idx];
+        if (!c?.ts) return null;
+        const x = candleX(idx);
+        return (
+          <g key={`t${i}`}>
+            <line x1={x} x2={x} y1={padding.top + chartH} y2={padding.top + chartH + 4} stroke="#2a3548" strokeWidth={1} />
+            <text x={x} y={padding.top + chartH + 18} textAnchor="middle" fill="#5a6a7d" fontSize={10} fontFamily="'JetBrains Mono', monospace">
+              {fmtDateLabel(c.ts, intervalLabel)}
+            </text>
+          </g>
+        );
+      })}
       {futureCount > 0 && entryPrice != null && (
         <g>
           <line x1={dividerX} x2={dividerX} y1={padding.top} y2={padding.top + chartH} stroke="#e8a838" strokeWidth={2} strokeDasharray="6,3" />
           <line x1={padding.left} x2={padding.left + chartW} y1={toY(entryPrice)} y2={toY(entryPrice)} stroke="#e8a838" strokeWidth={1} strokeDasharray="2,3" opacity={0.55} />
-          <rect x={dividerX - 40} y={padding.top - 26} width={80} height={20} rx={3} fill="#e8a838" />
-          <text x={dividerX} y={padding.top - 12} textAnchor="middle" fill="#0a0f14" fontSize={11} fontFamily="'Courier New', monospace" fontWeight="bold">ENTRADA</text>
-          <rect x={padding.left + chartW + 4} y={toY(entryPrice) - 9} width={84} height={18} rx={3} fill="#e8a838" />
-          <text x={padding.left + chartW + 46} y={toY(entryPrice) + 4} textAnchor="middle" fill="#0a0f14" fontSize={10} fontFamily="'Courier New', monospace" fontWeight="bold">{fmtPrice(entryPrice)}</text>
+          <rect x={dividerX - 40} y={padding.top - 26} width={80} height={20} rx={4} fill="#e8a838" />
+          <text x={dividerX} y={padding.top - 12} textAnchor="middle" fill="#0a0e14" fontSize={11} fontFamily="'Inter', sans-serif" fontWeight={700}>ENTRADA</text>
+          <rect x={padding.left + chartW + 4} y={toY(entryPrice) - 9} width={84} height={18} rx={4} fill="#e8a838" />
+          <text x={padding.left + chartW + 46} y={toY(entryPrice) + 4} textAnchor="middle" fill="#0a0e14" fontSize={10} fontFamily="'JetBrains Mono', monospace" fontWeight={700}>{fmtPrice(entryPrice)}</text>
         </g>
       )}
       {futureCount > 0 && exitPrice != null && (
         <g>
           <line x1={lastCandleX} x2={lastCandleX} y1={padding.top} y2={padding.top + chartH} stroke={exitColor} strokeWidth={2} strokeDasharray="6,3" />
           <line x1={dividerX} x2={padding.left + chartW} y1={toY(exitPrice)} y2={toY(exitPrice)} stroke={exitColor} strokeWidth={2} />
-          <rect x={lastCandleX - 22} y={padding.top - 26} width={44} height={20} rx={3} fill={exitColor} />
-          <text x={lastCandleX} y={padding.top - 12} textAnchor="middle" fill="#0a0f14" fontSize={11} fontFamily="'Courier New', monospace" fontWeight="bold">FIM</text>
-          <rect x={padding.left + chartW + 4} y={toY(exitPrice) - 9} width={84} height={18} rx={3} fill={exitColor} />
-          <text x={padding.left + chartW + 46} y={toY(exitPrice) + 4} textAnchor="middle" fill="#0a0f14" fontSize={10} fontFamily="'Courier New', monospace" fontWeight="bold">{fmtPrice(exitPrice)}</text>
+          <rect x={lastCandleX - 22} y={padding.top - 26} width={44} height={20} rx={4} fill={exitColor} />
+          <text x={lastCandleX} y={padding.top - 12} textAnchor="middle" fill="#0a0e14" fontSize={11} fontFamily="'Inter', sans-serif" fontWeight={700}>FIM</text>
+          <rect x={padding.left + chartW + 4} y={toY(exitPrice) - 9} width={84} height={18} rx={4} fill={exitColor} />
+          <text x={padding.left + chartW + 46} y={toY(exitPrice) + 4} textAnchor="middle" fill="#0a0e14" fontSize={10} fontFamily="'JetBrains Mono', monospace" fontWeight={700}>{fmtPrice(exitPrice)}</text>
         </g>
       )}
       {futureCount === 0 && candles.length > 0 && (() => {
@@ -336,7 +372,7 @@ export default function TradingGame() {
         <div style={styles.statsWrap}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <button style={styles.backBtn} onClick={() => setScreen("home")}>{"<"}</button>
+              <button style={styles.backBtn} onClick={() => setScreen("home")}><ChevronLeft size={18} strokeWidth={2.5} /></button>
               <span style={styles.sectionTitle}>Historico</span>
             </div>
             <button style={{ ...styles.backBtn, color: "#ff4757", borderColor: "#3a1a22", fontSize: 10, letterSpacing: 1 }} onClick={resetProgress}>RESET</button>
@@ -356,7 +392,7 @@ export default function TradingGame() {
               history.map((h, i) => (
                 <div key={i} style={{ ...styles.historyItem, borderLeft: `3px solid ${h.isCorrect ? "#00d084" : "#ff4757"}` }}>
                   <span style={{ color: "#7a9ab0", fontSize: 11, flex: 1 }}>{h.symbol} <span style={{ color: "#3d84c8" }}>{h.interval}</span></span>
-                  <span style={{ color: h.isCorrect ? "#00d084" : "#ff4757", fontSize: 11, fontWeight: 700 }}>{h.choice} {h.isCorrect ? "OK" : "X"}</span>
+                  <span style={{ color: h.isCorrect ? "#00d084" : "#ff4757", fontSize: 11, fontWeight: 700 }}>{h.choice} {h.isCorrect ? "✓" : "✗"}</span>
                   <span style={{ color: h.moveBps >= 0 ? "#00d084" : "#ff4757", fontSize: 10, marginLeft: 8 }}>{h.priceDiffStr || (h.moveBps + "bp")}</span>
                   <span style={{ color: "#3d84c8", fontSize: 11, marginLeft: 8 }}>+{h.xpEarned}xp</span>
                 </div>
@@ -385,7 +421,7 @@ export default function TradingGame() {
           </div>
         )}
         <div style={styles.gameHeader}>
-          <button style={styles.backBtn} onClick={() => setScreen("home")}>{"<"}</button>
+          <button style={styles.backBtn} onClick={() => setScreen("home")}><ChevronLeft size={18} strokeWidth={2.5} /></button>
           <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
             {chartData && lastResult && (
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -394,7 +430,7 @@ export default function TradingGame() {
               </div>
             )}
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ color: "#e8a838", fontSize: 11 }}>STREAK</span>
+              <Flame size={14} color="#e8a838" strokeWidth={2.5} />
               <span style={{ color: "#e8a838", fontWeight: 700, fontSize: 13 }}>{streak}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -413,10 +449,7 @@ export default function TradingGame() {
         <div style={styles.chartBox}>
           <div ref={chartScrollRef} style={{ overflowX: "auto", minHeight: 260, display: "flex", alignItems: "center", justifyContent: "center" }}>
             {loadingChart && (
-              <div style={{ color: "#3d84c8", fontSize: 12, letterSpacing: 2, padding: 60, textAlign: "center" }}>
-                <div style={{ ...styles.loadDot, margin: "0 auto 12px" }} />
-                BUSCANDO CHART REAL...
-              </div>
+              <div className="skeleton" style={{ width: "100%", height: 380, borderRadius: 8 }} />
             )}
             {chartError && (
               <div style={{ color: "#ff4757", fontSize: 12, padding: 40, textAlign: "center" }}>
@@ -425,7 +458,7 @@ export default function TradingGame() {
               </div>
             )}
             {chartData && !chartError && (
-              <CandleChart candles={allCandles} width={950} height={360} futureCount={lastResult ? chartData.futureCandles.length : 0} />
+              <CandleChart candles={allCandles} width={950} height={380} futureCount={lastResult ? chartData.futureCandles.length : 0} watermark={lastResult ? `${chartData.symbol} ${chartData.interval}` : null} intervalLabel={chartData?.interval} />
             )}
           </div>
           <div style={styles.chartLabel}>
@@ -434,13 +467,13 @@ export default function TradingGame() {
         </div>
         {!lastResult && chartData && !loadingChart && !chartError ? (
           <div style={styles.actionRow}>
-            <button style={styles.btnBuy} onClick={() => handleAnswer("BUY")}>BUY / LONG</button>
-            <button style={styles.btnSell} onClick={() => handleAnswer("SELL")}>SELL / SHORT</button>
+            <button style={styles.btnBuy} onClick={() => handleAnswer("BUY")}><span style={{display:"inline-flex",alignItems:"center",gap:10,justifyContent:"center"}}><TrendingUp size={20} strokeWidth={2.5}/>BUY / LONG</span></button>
+            <button style={styles.btnSell} onClick={() => handleAnswer("SELL")}><span style={{display:"inline-flex",alignItems:"center",gap:10,justifyContent:"center"}}><TrendingDown size={20} strokeWidth={2.5}/>SELL / SHORT</span></button>
           </div>
         ) : lastResult ? (
           <div style={styles.resultBox}>
             <div style={{ ...styles.resultBadge, background: lastResult.isCorrect ? "rgba(0,208,132,0.1)" : "rgba(255,71,87,0.1)", border: `1px solid ${lastResult.isCorrect ? "#00d084" : "#ff4757"}` }}>
-              <span style={{ fontSize: 22 }}>{lastResult.isCorrect ? "OK" : "X"}</span>
+              <span style={{ display: "inline-flex", padding: 8, borderRadius: 999, background: lastResult.isCorrect ? "rgba(0,208,132,0.18)" : "rgba(255,71,87,0.18)" }}>{lastResult.isCorrect ? <Check size={22} color="#00d084" strokeWidth={3} /> : <XIcon size={22} color="#ff4757" strokeWidth={3} />}</span>
               <div>
                 <div style={{ color: lastResult.isCorrect ? "#00d084" : "#ff4757", fontWeight: 700, fontSize: 13 }}>
                   {lastResult.choice === "TIMEOUT" ? "TEMPO ESGOTADO" : lastResult.isCorrect ? "CORRETO!" : "ERRADO"}
@@ -475,40 +508,40 @@ export default function TradingGame() {
 }
 
 const styles = {
-  root: { minHeight: "100vh", background: "#060b10", display: "flex", alignItems: "flex-start", justifyContent: "center", fontFamily: "'Courier New', 'Consolas', monospace", padding: "0 0 40px" },
+  root: { minHeight: "100vh", background: "#0a0e14", display: "flex", alignItems: "flex-start", justifyContent: "center", fontFamily: "'Inter', -apple-system, sans-serif", padding: "0 0 40px" },
   homeWrap: { width: "100%", maxWidth: 480, padding: "40px 20px 20px", display: "flex", flexDirection: "column", gap: 16 },
-  logo: { textAlign: "center", letterSpacing: 6, fontSize: 28, fontWeight: 900, textTransform: "uppercase", lineHeight: 1, marginBottom: 4 },
+  logo: { textAlign: "center", letterSpacing: 4, fontSize: 32, fontWeight: 800, textTransform: "uppercase", lineHeight: 1, marginBottom: 4 },
   logoAccent: { color: "#00d084" },
   logoMain: { color: "#e8e8e8" },
   tagline: { textAlign: "center", color: "#2d4a5f", fontSize: 12, letterSpacing: 2, margin: 0, textTransform: "uppercase" },
-  levelCard: { background: "#0a1420", border: "1px solid #0e1e2e", borderRadius: 8, padding: "14px 16px" },
+  levelCard: { background: "#0f1620", border: "1px solid #1a2332", borderRadius: 10, padding: "14px 16px" },
   xpBarBg: { height: 6, background: "#0e1e2e", borderRadius: 3, overflow: "hidden" },
   xpBarFill: { height: "100%", borderRadius: 3, transition: "width 0.5s ease" },
   statsRow: { display: "flex", gap: 8 },
-  statBox: { flex: 1, background: "#0a1420", border: "1px solid #0e1e2e", borderRadius: 8, padding: "10px 6px", textAlign: "center" },
-  statVal: { color: "#e8e8e8", fontSize: 18, fontWeight: 700 },
+  statBox: { flex: 1, background: "#0f1620", border: "1px solid #1a2332", borderRadius: 10, padding: "12px 8px", textAlign: "center" },
+  statVal: { color: "#e6e8eb", fontSize: 22, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" },
   statLabel: { color: "#2d4a5f", fontSize: 10, textTransform: "uppercase", letterSpacing: 1, marginTop: 2 },
-  btnPrimary: { background: "linear-gradient(135deg, #00d084 0%, #00a86b 100%)", color: "#060b10", border: "none", borderRadius: 8, padding: "14px 20px", fontFamily: "'Courier New', monospace", fontWeight: 700, fontSize: 13, letterSpacing: 2, cursor: "pointer", textTransform: "uppercase" },
-  btnSecondary: { background: "transparent", color: "#4a6278", border: "1px solid #1a2d3d", borderRadius: 8, padding: "12px 20px", fontFamily: "'Courier New', monospace", fontSize: 11, letterSpacing: 2, cursor: "pointer", textTransform: "uppercase" },
-  howto: { border: "1px solid #0e1e2e", borderRadius: 6, padding: "10px 14px", textAlign: "center" },
+  btnPrimary: { background: "linear-gradient(135deg, #00d084 0%, #00a86b 100%)", color: "#060b10", border: "none", borderRadius: 10, padding: "14px 20px", fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: 13, letterSpacing: 2, cursor: "pointer", textTransform: "uppercase" },
+  btnSecondary: { background: "transparent", color: "#4a6278", border: "1px solid #2a3548", borderRadius: 10, padding: "12px 20px", fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: 2, cursor: "pointer", textTransform: "uppercase" },
+  howto: { border: "1px solid #1a2332", borderRadius: 8, padding: "10px 14px", textAlign: "center" },
   gameWrap: { width: "100%", maxWidth: 1000, padding: "16px 12px 20px", display: "flex", flexDirection: "column", gap: 12, position: "relative" },
   gameHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 4px", flexWrap: "wrap", gap: 8 },
-  backBtn: { background: "transparent", color: "#4a6278", border: "1px solid #1a2d3d", borderRadius: 6, padding: "6px 12px", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: 14 },
-  timerBarBg: { height: 28, background: "#0a1420", border: "1px solid #0e1e2e", borderRadius: 6, overflow: "hidden", position: "relative", display: "flex", alignItems: "center" },
+  backBtn: { background: "transparent", color: "#4a6278", border: "1px solid #2a3548", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace", fontSize: 14 },
+  timerBarBg: { height: 28, background: "#0f1620", border: "1px solid #1a2332", borderRadius: 8, overflow: "hidden", position: "relative", display: "flex", alignItems: "center" },
   timerBarFill: { position: "absolute", left: 0, top: 0, height: "100%", opacity: 0.25 },
   timerNum: { position: "absolute", right: 10, fontWeight: 700, fontSize: 12, letterSpacing: 1 },
-  chartBox: { background: "#060e18", border: "1px solid #0e1e2e", borderRadius: 10, padding: "12px 8px 4px", overflow: "hidden" },
+  chartBox: { background: "#0c121a", border: "1px solid #1a2332", borderRadius: 10, padding: "12px 8px 4px", overflow: "hidden" },
   chartLabel: { color: "#1a2d3d", fontSize: 10, textAlign: "center", letterSpacing: 2, textTransform: "uppercase", padding: "6px 0 2px" },
   actionRow: { display: "flex", gap: 10 },
-  btnBuy: { flex: 1, padding: "18px", background: "rgba(0,208,132,0.08)", border: "2px solid #00d084", borderRadius: 10, color: "#00d084", fontFamily: "'Courier New', monospace", fontWeight: 700, fontSize: 15, letterSpacing: 2, cursor: "pointer" },
-  btnSell: { flex: 1, padding: "18px", background: "rgba(255,71,87,0.08)", border: "2px solid #ff4757", borderRadius: 10, color: "#ff4757", fontFamily: "'Courier New', monospace", fontWeight: 700, fontSize: 15, letterSpacing: 2, cursor: "pointer" },
+  btnBuy: { flex: 1, padding: "18px", background: "rgba(0,208,132,0.08)", border: "2px solid #00d084", borderRadius: 10, color: "#00d084", fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: 15, letterSpacing: 2, cursor: "pointer" },
+  btnSell: { flex: 1, padding: "18px", background: "rgba(255,71,87,0.08)", border: "2px solid #ff4757", borderRadius: 10, color: "#ff4757", fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: 15, letterSpacing: 2, cursor: "pointer" },
   resultBox: { display: "flex", flexDirection: "column", gap: 10 },
   resultBadge: { borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", gap: 14 },
-  feedbackBox: { background: "#080f18", border: "1px solid #0e1e2e", borderRadius: 8, padding: "12px 14px", minHeight: 52, display: "flex", alignItems: "center" },
+  feedbackBox: { background: "#0f1620", border: "1px solid #1a2332", borderRadius: 10, padding: "12px 14px", minHeight: 52, display: "flex", alignItems: "center" },
   loadDot: { width: 8, height: 8, borderRadius: "50%", background: "#3d84c8", animation: "pulse 1s infinite" },
-  historyItem: { display: "flex", alignItems: "center", padding: "8px 10px", background: "#080f18", borderRadius: 6, marginBottom: 4, gap: 8 },
+  historyItem: { display: "flex", alignItems: "center", padding: "8px 10px", background: "#0f1620", borderRadius: 8, marginBottom: 4, gap: 8 },
   sectionTitle: { color: "#e8e8e8", fontWeight: 700, fontSize: 14, letterSpacing: 3, textTransform: "uppercase" },
   statsWrap: { width: "100%", maxWidth: 480, padding: "20px 16px" },
   levelUpOverlay: { position: "fixed", inset: 0, background: "rgba(6,11,16,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, pointerEvents: "none" },
-  levelUpCard: { background: "#0a1420", border: "2px solid", borderRadius: 12, padding: "26px 44px", textAlign: "center", animation: "levelup 0.45s ease-out" },
+  levelUpCard: { background: "#0f1620", border: "2px solid", borderRadius: 12, padding: "26px 44px", textAlign: "center", animation: "levelup 0.45s ease-out" },
 };

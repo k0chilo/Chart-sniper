@@ -3,17 +3,49 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#060b10" />
-    <title>Chart Sniper</title>
+    <meta name="theme-color" content="#0a0e14" />
+    <title>Chart Sniper - Treino de Trading</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-      html, body, #root { height: 100%; margin: 0; background: #060b10; }
-      body { -webkit-font-smoothing: antialiased; }
-      @keyframes pulse { 0%,100%{opacity:.4;transform:scale(1);} 50%{opacity:1;transform:scale(1.2);} }
-      @keyframes levelup { 0%{transform:scale(.6);opacity:0;} 50%{transform:scale(1.1);opacity:1;} 100%{transform:scale(1);opacity:1;} }
-      *::-webkit-scrollbar { width: 6px; height: 6px; }
-      *::-webkit-scrollbar-thumb { background: #1a2d3d; border-radius: 3px; }
+      html, body, #root { height: 100%; margin: 0; background: #0a0e14; }
+      body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        color: #e6e8eb;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 0.4; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.2); }
+      }
+      @keyframes levelup {
+        0% { transform: scale(0.6); opacity: 0; }
+        50% { transform: scale(1.1); opacity: 1; }
+        100% { transform: scale(1); opacity: 1; }
+      }
+      @keyframes shimmer {
+        0% { background-position: -1000px 0; }
+        100% { background-position: 1000px 0; }
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .skeleton {
+        background: linear-gradient(90deg, #0f1620 0%, #1a2332 50%, #0f1620 100%);
+        background-size: 1000px 100%;
+        animation: shimmer 1.6s infinite linear;
+      }
+      .fade-in { animation: fadeIn 0.3s ease-out; }
+      *::-webkit-scrollbar { width: 8px; height: 8px; }
+      *::-webkit-scrollbar-track { background: #0a0e14; }
+      *::-webkit-scrollbar-thumb { background: #1a2332; border-radius: 4px; }
+      *::-webkit-scrollbar-thumb:hover { background: #2a3548; }
       button:active { transform: scale(0.97); }
-      button { transition: transform 0.08s ease, opacity 0.15s, background 0.15s; }
+      button { transition: transform 0.08s ease, opacity 0.15s, background 0.15s, border-color 0.15s; }
+      button:hover { opacity: 0.9; }
     </style>
   </head>
   <body>
