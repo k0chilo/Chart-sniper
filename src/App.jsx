@@ -84,12 +84,14 @@ export default function TradingGame() {
   const [drawings, setDrawings] = useState([]);
   const [pending, setPending] = useState(null);
   const [hoverPt, setHoverPt] = useState(null);
+  const [pastOverride, setPastOverride] = useState(null);
 
   useEffect(() => {
     setDrawings([]);
     setPending(null);
     setHoverPt(null);
     setTool("none");
+    setPastOverride(null);
   }, [chartData?.symbol, chartData?.interval, chartData?.candles?.[0]?.ts]);
 
   const eventToCoords = (e) => {
@@ -313,7 +315,8 @@ export default function TradingGame() {
 
   const timerPct = (timer / 30) * 100;
   const timerColor = timer > 15 ? "#00d084" : timer > 8 ? "#e8a838" : "#ff4757";
-  const allCandles = chartData ? (lastResult ? [...chartData.candles.slice(-25), ...chartData.futureCandles] : chartData.candles) : [];
+  const _eff = pastOverride ?? 75;
+  const allCandles = chartData ? (lastResult ? [...chartData.candles.slice(-_eff), ...chartData.futureCandles] : chartData.candles.slice(-_eff)) : [];
 
   return (
     <div style={styles.root}>
@@ -354,8 +357,8 @@ export default function TradingGame() {
           </div>
         )}
         <div style={styles.chartBox}>
-          {chartData && !lastResult && !chartError && !loadingChart && (
-            <ChartToolbar tool={tool} setTool={setTool} pending={pending} setPending={setPending} onClearAll={() => { setDrawings([]); setPending(null); }} />
+          {chartData && !chartError && !loadingChart && (
+            <ChartToolbar tool={tool} setTool={setTool} pending={pending} setPending={setPending} onClearAll={() => { setDrawings([]); setPending(null); }} onZoomIn={() => setPastOverride(Math.max(15, _eff - 15))} onZoomOut={() => setPastOverride(Math.min(75, _eff + 15))} onZoomReset={() => setPastOverride(null)} isCustomZoom={pastOverride !== null} />
           )}
           <div ref={chartScrollRef} style={{ overflowX: "auto", minHeight: 260, display: "flex", alignItems: "center", justifyContent: "center" }}>
             {loadingChart && (

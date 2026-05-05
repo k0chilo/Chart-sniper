@@ -1,4 +1,4 @@
-import { MousePointer2, Minus, Slash, Activity, Trash2 } from "lucide-react";
+import { MousePointer2, Minus, Slash, Activity, Trash2, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 
 export function fmtDiff(diff) {
   const sign = diff >= 0 ? "+" : "";
@@ -41,7 +41,7 @@ export function ToolBtn({ active, onClick, title, children, danger }) {
   );
 }
 
-export function ChartToolbar({ tool, setTool, pending, setPending, onClearAll }) {
+export function ChartToolbar({ tool, setTool, pending, setPending, onClearAll, onZoomIn, onZoomOut, onZoomReset, isCustomZoom }) {
   const hint = pending ? "click para finalizar" : (
     tool === "hline" ? "click no preco" :
     tool === "trendline" ? "click no inicio" :
@@ -55,6 +55,12 @@ export function ChartToolbar({ tool, setTool, pending, setPending, onClearAll })
       <ToolBtn active={tool === "fib"} onClick={() => { setTool("fib"); setPending(null); }} title="Fibonacci (2 cliques)"><Activity size={16}/></ToolBtn>
       {hint && <span style={{ color: "#7a8a9a", fontSize: 11, marginLeft: 6 }}>{hint}</span>}
       <div style={{ flex: 1 }} />
+      {onZoomIn && (<>
+        <ToolBtn onClick={onZoomOut} title="Mais candles"><ZoomOut size={16}/></ToolBtn>
+        <ToolBtn onClick={onZoomIn} title="Menos candles"><ZoomIn size={16}/></ToolBtn>
+        <ToolBtn active={isCustomZoom} onClick={onZoomReset} title="Reset zoom"><Maximize2 size={15}/></ToolBtn>
+        <div style={{width:1,height:20,background:"#1a2332",margin:"0 4px"}}/>
+      </>)}
       <ToolBtn onClick={onClearAll} title="Limpar desenhos" danger><Trash2 size={16}/></ToolBtn>
     </div>
   );
