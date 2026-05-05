@@ -306,7 +306,7 @@ export default function TradingGame() {
           <button style={styles.btnPrimary} onClick={startRound}>INICIAR ROUND</button>
           {totalAnswered > 0 && (<button style={styles.btnSecondary} onClick={() => setScreen("stats")}>VER HISTORICO</button>)}
           <div style={styles.howto}>
-            <p style={{ color: "#2d4a5f", fontSize: 11, margin: 0 }}>Le 75 candles reais. Adivinhe se o preco subiu ou desceu nos proximos 15.</p>
+            <p style={{ color: "#2d4a5f", fontSize: 11, margin: 0 }}>Le 75 candles reais. Adivinhe se o preco subiu ou desceu nos proximos 25.</p>
           </div>
         </div>
       </div>
@@ -413,7 +413,7 @@ export default function TradingGame() {
             )}
           </div>
           <div style={styles.chartLabel}>
-            {lastResult ? `Movimento: ${fmtDiff(chartData.futureCandles[chartData.futureCandles.length-1].close - chartData.candles[chartData.candles.length-1].close)} em ${chartData.futureCandles.length} candles` : "Onde o preco vai nos proximos 15 candles?"}
+            {lastResult ? `Movimento: ${fmtDiff(chartData.futureCandles[chartData.futureCandles.length-1].close - chartData.candles[chartData.candles.length-1].close)} em ${chartData.futureCandles.length} candles` : "Onde o preco vai nos proximos 25 candles?"}
           </div>
         </div>
         {!lastResult && chartData && !loadingChart && !chartError ? (

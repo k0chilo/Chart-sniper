@@ -24,7 +24,7 @@ const INTERVALS = [
 ];
 const VISIBLE = 75;
 const MIN_TS = new Date("2025-01-01").getTime();
-const FUTURE = 15;
+const FUTURE = 25;
 const UAS = [
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
