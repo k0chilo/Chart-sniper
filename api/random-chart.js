@@ -75,8 +75,10 @@ async function fetchYahoo(sym, ivl) {
 }
 
 export default async function handler(req, res) {
-  const asset = ASSETS[Math.floor(Math.random() * ASSETS.length)];
-  const ivl = INTERVALS[Math.floor(Math.random() * INTERVALS.length)];
+  const wantSym = (req.query?.symbol || "").trim();
+  const wantIvl = (req.query?.interval || "").trim();
+  const asset = ASSETS.find(a => a.label === wantSym) || ASSETS[Math.floor(Math.random() * ASSETS.length)];
+  const ivl = INTERVALS.find(i => i.label === wantIvl) || INTERVALS[Math.floor(Math.random() * INTERVALS.length)];
   try {
     const data = await fetchYahoo(asset.sym, ivl);
     if (data && data.error) {
@@ -94,6 +96,13 @@ export default async function handler(req, res) {
       candles.push({ open: o, high: h, low: l, close: c, ts: ts[i] * 1000 });
     }
     candles = candles.filter(k => k.ts >= MIN_TS && k.high > k.low);
+    // descartar candles "fracos" cujo range seja < 10% da mediana - evita serie aparecer como linha
+    if (candles.length > 30) {
+      const ranges = candles.map(k => k.high - k.low).slice().sort((a,b) => a-b);
+      const median = ranges[Math.floor(ranges.length / 2)];
+      const minRange = median * 0.1;
+      candles = candles.filter(k => (k.high - k.low) >= minRange);
+    }
     if (ivl.agg) candles = aggregateCandles(candles, ivl.agg);
     if (candles.length < VISIBLE + FUTURE + 5) {
       return res.status(502).json({ error: "not_enough_candles", got: candles.length, sym: asset.sym, ivl: ivl.label });

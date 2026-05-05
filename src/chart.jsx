@@ -152,7 +152,7 @@ export function CandleChart({ candles, width = 950, height = 380, futureCount = 
         const opacity = isFuture ? 0.75 : 0.95;
         const bodyTop = toY(Math.max(c.open, c.close));
         const bodyBot = toY(Math.min(c.open, c.close));
-        const bodyH = Math.max(1, bodyBot - bodyTop);
+        const bodyH = Math.max(2, bodyBot - bodyTop);
         return (
           <g key={i} pointerEvents="none">
             <line x1={x} x2={x} y1={toY(c.high)} y2={toY(c.low)} stroke={baseColor} strokeWidth={1.4} opacity={opacity} />

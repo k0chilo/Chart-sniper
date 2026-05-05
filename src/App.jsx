@@ -3,8 +3,8 @@ import { ChevronLeft, Check, X as XIcon, TrendingUp, TrendingDown, Flame, Trophy
 
 import { CandleChart, ChartToolbar, fmtDiff, fmtDateLabel } from "./chart.jsx";
 
-async function fetchRound() {
-  const r = await fetch("/api/random-chart");
+async function fetchRound(sym, ivl) {
+  const _qs = new URLSearchParams(); if (sym) _qs.set("symbol", sym); if (ivl) _qs.set("interval", ivl); const r = await fetch("/api/random-chart" + (_qs.toString() ? "?" + _qs.toString() : ""));
   if (!r.ok) throw new Error("api_fail");
   const data = await r.json();
   if (!data.candles || !data.futureCandles || !data.correct) throw new Error("bad_payload");
@@ -71,6 +71,8 @@ export default function TradingGame() {
   const [totalCorrect, setTotalCorrect] = useState(0);
   const [history, setHistory] = useState([]);
   const [hydrated, setHydrated] = useState(false);
+  const [pickedSymbol, setPickedSymbol] = useState("");
+  const [pickedInterval, setPickedInterval] = useState("");
   const [lastResult, setLastResult] = useState(null);
   const [aiFeedback, setAiFeedback] = useState("");
   const [loadingFeedback, setLoadingFeedback] = useState(false);
@@ -135,14 +137,16 @@ export default function TradingGame() {
       setTotalAnswered(s.totalAnswered || 0);
       setTotalCorrect(s.totalCorrect || 0);
       setHistory(Array.isArray(s.history) ? s.history : []);
+      setPickedSymbol(s.pickedSymbol || "");
+      setPickedInterval(s.pickedInterval || "");
     }
     setHydrated(true);
   }, []);
 
   useEffect(() => {
     if (!hydrated) return;
-    saveState({ xp, streak, bestStreak, totalAnswered, totalCorrect, history });
-  }, [hydrated, xp, streak, bestStreak, totalAnswered, totalCorrect, history]);
+    saveState({ xp, streak, bestStreak, totalAnswered, totalCorrect, history, pickedSymbol, pickedInterval });
+  }, [hydrated, xp, streak, bestStreak, totalAnswered, totalCorrect, history, pickedSymbol, pickedInterval]);
 
   const currentLevel = getCurrentLevel(xp);
   const nextLevel = getNextLevel(xp);
@@ -156,7 +160,7 @@ export default function TradingGame() {
     setChartError(null);
     setLoadingChart(true);
     try {
-      const data = await fetchRound();
+      const data = await fetchRound(pickedSymbol, pickedInterval);
       setChartData(data);
       setLoadingChart(false);
       setTimer(30);
@@ -264,6 +268,40 @@ export default function TradingGame() {
                 <div style={styles.statLabel}>{s.label}</div>
               </div>
             ))}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ color: "#5a6a7d", fontSize: 10, letterSpacing: 1, textTransform: "uppercase", display: "block", marginBottom: 4 }}>Ativo</label>
+              <select value={pickedSymbol} onChange={(e) => setPickedSymbol(e.target.value)} style={styles.selectBox}>
+                <option value="">Aleatorio</option>
+                <option value="EUR/USD">EUR/USD</option>
+                <option value="GBP/USD">GBP/USD</option>
+                <option value="USD/JPY">USD/JPY</option>
+                <option value="USD/CHF">USD/CHF</option>
+                <option value="AUD/USD">AUD/USD</option>
+                <option value="USD/CAD">USD/CAD</option>
+                <option value="NZD/USD">NZD/USD</option>
+                <option value="XAU/USD">XAU/USD</option>
+                <option value="XAG/USD">XAG/USD</option>
+                <option value="BTC/USD">BTC/USD</option>
+                <option value="ETH/USD">ETH/USD</option>
+                <option value="SOL/USD">SOL/USD</option>
+                <option value="XRP/USD">XRP/USD</option>
+                <option value="NASDAQ">NASDAQ</option>
+              </select>
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ color: "#5a6a7d", fontSize: 10, letterSpacing: 1, textTransform: "uppercase", display: "block", marginBottom: 4 }}>Timeframe</label>
+              <select value={pickedInterval} onChange={(e) => setPickedInterval(e.target.value)} style={styles.selectBox}>
+                <option value="">Aleatorio</option>
+                <option value="5M">5M</option>
+                <option value="15M">15M</option>
+                <option value="30M">30M</option>
+                <option value="1H">1H</option>
+                <option value="4H">4H</option>
+                <option value="1D">1D</option>
+              </select>
+            </div>
           </div>
           <button style={styles.btnPrimary} onClick={startRound}>INICIAR ROUND</button>
           {totalAnswered > 0 && (<button style={styles.btnSecondary} onClick={() => setScreen("stats")}>VER HISTORICO</button>)}
@@ -434,6 +472,19 @@ const styles = {
   statBox: { flex: 1, background: "#0f1620", border: "1px solid #1a2332", borderRadius: 10, padding: "12px 8px", textAlign: "center" },
   statVal: { color: "#e6e8eb", fontSize: 22, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" },
   statLabel: { color: "#2d4a5f", fontSize: 10, textTransform: "uppercase", letterSpacing: 1, marginTop: 2 },
+  selectBox: {
+    width: "100%",
+    background: "#0f1620",
+    color: "#e6e8eb",
+    border: "1px solid #1a2332",
+    borderRadius: 8,
+    padding: "10px 12px",
+    fontFamily: "'Inter', sans-serif",
+    fontSize: 13,
+    cursor: "pointer",
+    appearance: "none",
+    WebkitAppearance: "none",
+  },
   btnPrimary: { background: "linear-gradient(135deg, #00d084 0%, #00a86b 100%)", color: "#060b10", border: "none", borderRadius: 10, padding: "14px 20px", fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: 13, letterSpacing: 2, cursor: "pointer", textTransform: "uppercase" },
   btnSecondary: { background: "transparent", color: "#4a6278", border: "1px solid #2a3548", borderRadius: 10, padding: "12px 20px", fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: 2, cursor: "pointer", textTransform: "uppercase" },
   howto: { border: "1px solid #1a2332", borderRadius: 8, padding: "10px 14px", textAlign: "center" },
