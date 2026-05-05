@@ -67,7 +67,7 @@ export function ChartToolbar({ tool, setTool, pending, setPending, onClearAll, o
 }
 
 export function CandleChart({ candles, width = 950, height = 380, futureCount = 0, watermark, intervalLabel, drawings = [], pending = null, hover = null, tool = "none", svgRef, onClick, onMouseMove, onMouseLeave }) {
-  const padding = { top: 38, right: 92, bottom: 42, left: 72 };
+  const padding = { top: 38, right: 90, bottom: 42, left: 28 };
   const chartW = width - padding.left - padding.right;
   const chartH = height - padding.top - padding.bottom;
   const allPrices = candles.flatMap((c) => [c.high, c.low]);
@@ -78,7 +78,7 @@ export function CandleChart({ candles, width = 950, height = 380, futureCount = 
   const toY = (p) => padding.top + ((maxP + pad - p) / (range + 2 * pad)) * chartH;
   const yToPrice = (y) => maxP + pad - ((y - padding.top) / chartH) * (range + 2 * pad);
   const _slotW = chartW / candles.length;
-  const candleW = Math.max(2, Math.floor(_slotW * 0.72));
+  const candleW = Math.max(2, Math.floor(_slotW * 0.78));
   const wickW = Math.max(0.8, Math.min(1.6, candleW / 7));
   const levels = 5;
   const priceLines = Array.from({ length: levels }, (_, i) => minP - pad + ((range + 2 * pad) / (levels - 1)) * i).reverse();
@@ -143,14 +143,14 @@ export function CandleChart({ candles, width = 950, height = 380, futureCount = 
       {priceLines.map((p, i) => (
         <g key={i} pointerEvents="none">
           <line x1={padding.left} x2={padding.left + chartW} y1={toY(p)} y2={toY(p)} stroke="#1a2332" strokeWidth={1} strokeDasharray="2,4" opacity={0.7} />
-          <text x={padding.left - 8} y={toY(p) + 4} textAnchor="end" fill="#5a6a7d" fontSize={10} fontFamily="'JetBrains Mono', monospace">{fmtPrice(p)}</text>
+          <text x={padding.left + chartW + 8} y={toY(p) + 4} textAnchor="start" fill="#5a6a7d" fontSize={10} fontFamily="'JetBrains Mono', monospace">{fmtPrice(p)}</text>
         </g>
       ))}
       {candles.map((c, i) => {
         const x = candleX(i);
         const isGreen = c.close >= c.open;
         const isFuture = i >= visibleCount;
-        const baseColor = isGreen ? "#00d084" : "#ff4757";
+        const baseColor = isGreen ? "#26a69a" : "#ef5350";
         const opacity = isFuture ? 0.75 : 0.95;
         const bodyTop = toY(Math.max(c.open, c.close));
         const bodyBot = toY(Math.min(c.open, c.close));
@@ -213,7 +213,7 @@ export function CandleChart({ candles, width = 950, height = 380, futureCount = 
         const y = toY(last.close);
         const isGreen = last.close >= last.open;
         return (
-          <line x1={padding.left} x2={padding.left + chartW} y1={y} y2={y} stroke={isGreen ? "#00d084" : "#ff4757"} strokeWidth={1} strokeDasharray="4,3" opacity={0.5} pointerEvents="none" />
+          <line x1={padding.left} x2={padding.left + chartW} y1={y} y2={y} stroke={isGreen ? "#26a69a" : "#ef5350"} strokeWidth={1} strokeDasharray="4,3" opacity={0.5} pointerEvents="none" />
         );
       })()}
     </svg>
