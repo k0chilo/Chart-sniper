@@ -1,7 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-function CandleChart({ candles, width = 700, height = 290, futureCount = 0 }) {
-  const padding = { top: 32, right: 70, bottom: 28, left: 60 };
+function fmtDiff(diff) {
+  const sign = diff >= 0 ? "+" : "";
+  const abs = Math.abs(diff);
+  if (abs >= 100) return sign + diff.toFixed(1);
+  if (abs >= 1) return sign + diff.toFixed(3);
+  return sign + diff.toFixed(5);
+}
+
+function CandleChart({ candles, width = 950, height = 360, futureCount = 0 }) {
+  const padding = { top: 38, right: 92, bottom: 28, left: 72 };
   const chartW = width - padding.left - padding.right;
   const chartH = height - padding.top - padding.bottom;
 
@@ -27,7 +35,6 @@ function CandleChart({ candles, width = 700, height = 290, futureCount = 0 }) {
 
   const visibleCount = candles.length - futureCount;
   const candleX = (i) => padding.left + (i / candles.length) * chartW + chartW / candles.length / 2;
-
   const dividerX = futureCount > 0 ? padding.left + (visibleCount / candles.length) * chartW : null;
   const entryCandle = futureCount > 0 ? candles[visibleCount - 1] : null;
   const exitCandle = futureCount > 0 ? candles[candles.length - 1] : null;
@@ -38,23 +45,16 @@ function CandleChart({ candles, width = 700, height = 290, futureCount = 0 }) {
   const lastCandleX = candles.length > 0 ? candleX(candles.length - 1) : 0;
 
   return (
-    <svg width={width} height={height} style={{ display: "block" }}>
+    <svg width="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block", maxHeight: height }}>
       {futureCount > 0 && dividerX != null && (
-        <rect x={dividerX} y={padding.top} width={padding.left + chartW - dividerX} height={chartH}
-              fill="#0e1e2e" fillOpacity={0.35} />
+        <rect x={dividerX} y={padding.top} width={padding.left + chartW - dividerX} height={chartH} fill="#0e1e2e" fillOpacity={0.35} />
       )}
-
       {priceLines.map((p, i) => (
         <g key={i}>
-          <line x1={padding.left} x2={padding.left + chartW} y1={toY(p)} y2={toY(p)}
-                stroke="#1a2d3d" strokeWidth={1} />
-          <text x={padding.left - 6} y={toY(p) + 4} textAnchor="end"
-                fill="#4a6278" fontSize={9} fontFamily="'Courier New', monospace">
-            {fmtPrice(p)}
-          </text>
+          <line x1={padding.left} x2={padding.left + chartW} y1={toY(p)} y2={toY(p)} stroke="#1a2d3d" strokeWidth={1} />
+          <text x={padding.left - 8} y={toY(p) + 4} textAnchor="end" fill="#4a6278" fontSize={10} fontFamily="'Courier New', monospace">{fmtPrice(p)}</text>
         </g>
       ))}
-
       {candles.map((c, i) => {
         const x = candleX(i);
         const isGreen = c.close >= c.open;
@@ -66,60 +66,37 @@ function CandleChart({ candles, width = 700, height = 290, futureCount = 0 }) {
         const bodyH = Math.max(1, bodyBot - bodyTop);
         return (
           <g key={i}>
-            <line x1={x} x2={x} y1={toY(c.high)} y2={toY(c.low)}
-                  stroke={baseColor} strokeWidth={1.4} opacity={opacity} />
-            <rect x={x - candleW / 2} y={bodyTop} width={candleW} height={bodyH}
-                  fill={baseColor} fillOpacity={opacity} stroke={baseColor} strokeWidth={0.5} />
+            <line x1={x} x2={x} y1={toY(c.high)} y2={toY(c.low)} stroke={baseColor} strokeWidth={1.4} opacity={opacity} />
+            <rect x={x - candleW / 2} y={bodyTop} width={candleW} height={bodyH} fill={baseColor} fillOpacity={opacity} stroke={baseColor} strokeWidth={0.5} />
           </g>
         );
       })}
-
       {futureCount > 0 && entryPrice != null && (
         <g>
-          <line x1={dividerX} x2={dividerX} y1={padding.top} y2={padding.top + chartH}
-                stroke="#e8a838" strokeWidth={2} strokeDasharray="6,3" />
-          <line x1={padding.left} x2={padding.left + chartW}
-                y1={toY(entryPrice)} y2={toY(entryPrice)}
-                stroke="#e8a838" strokeWidth={1} strokeDasharray="2,3" opacity={0.55} />
-          <rect x={dividerX - 36} y={padding.top - 24} width={72} height={18} rx={3} fill="#e8a838" />
-          <text x={dividerX} y={padding.top - 11} textAnchor="middle"
-                fill="#0a0f14" fontSize={10} fontFamily="'Courier New', monospace" fontWeight="bold">
-            ENTRADA
-          </text>
-          <rect x={padding.left + chartW + 2} y={toY(entryPrice) - 8} width={64} height={16} rx={3} fill="#e8a838" />
-          <text x={padding.left + chartW + 34} y={toY(entryPrice) + 4} textAnchor="middle"
-                fill="#0a0f14" fontSize={9} fontFamily="'Courier New', monospace" fontWeight="bold">
-            {fmtPrice(entryPrice)}
-          </text>
+          <line x1={dividerX} x2={dividerX} y1={padding.top} y2={padding.top + chartH} stroke="#e8a838" strokeWidth={2} strokeDasharray="6,3" />
+          <line x1={padding.left} x2={padding.left + chartW} y1={toY(entryPrice)} y2={toY(entryPrice)} stroke="#e8a838" strokeWidth={1} strokeDasharray="2,3" opacity={0.55} />
+          <rect x={dividerX - 40} y={padding.top - 26} width={80} height={20} rx={3} fill="#e8a838" />
+          <text x={dividerX} y={padding.top - 12} textAnchor="middle" fill="#0a0f14" fontSize={11} fontFamily="'Courier New', monospace" fontWeight="bold">ENTRADA</text>
+          <rect x={padding.left + chartW + 4} y={toY(entryPrice) - 9} width={84} height={18} rx={3} fill="#e8a838" />
+          <text x={padding.left + chartW + 46} y={toY(entryPrice) + 4} textAnchor="middle" fill="#0a0f14" fontSize={10} fontFamily="'Courier New', monospace" fontWeight="bold">{fmtPrice(entryPrice)}</text>
         </g>
       )}
-
       {futureCount > 0 && exitPrice != null && (
         <g>
-          <line x1={dividerX} x2={padding.left + chartW}
-                y1={toY(exitPrice)} y2={toY(exitPrice)}
-                stroke={exitColor} strokeWidth={2} />
-          <rect x={lastCandleX - 22} y={padding.top - 24} width={44} height={18} rx={3} fill={exitColor} />
-          <text x={lastCandleX} y={padding.top - 11} textAnchor="middle"
-                fill="#0a0f14" fontSize={10} fontFamily="'Courier New', monospace" fontWeight="bold">
-            FIM
-          </text>
-          <rect x={padding.left + chartW + 2} y={toY(exitPrice) - 8} width={64} height={16} rx={3} fill={exitColor} />
-          <text x={padding.left + chartW + 34} y={toY(exitPrice) + 4} textAnchor="middle"
-                fill="#0a0f14" fontSize={9} fontFamily="'Courier New', monospace" fontWeight="bold">
-            {fmtPrice(exitPrice)}
-          </text>
+          <line x1={lastCandleX} x2={lastCandleX} y1={padding.top} y2={padding.top + chartH} stroke={exitColor} strokeWidth={2} strokeDasharray="6,3" />
+          <line x1={dividerX} x2={padding.left + chartW} y1={toY(exitPrice)} y2={toY(exitPrice)} stroke={exitColor} strokeWidth={2} />
+          <rect x={lastCandleX - 22} y={padding.top - 26} width={44} height={20} rx={3} fill={exitColor} />
+          <text x={lastCandleX} y={padding.top - 12} textAnchor="middle" fill="#0a0f14" fontSize={11} fontFamily="'Courier New', monospace" fontWeight="bold">FIM</text>
+          <rect x={padding.left + chartW + 4} y={toY(exitPrice) - 9} width={84} height={18} rx={3} fill={exitColor} />
+          <text x={padding.left + chartW + 46} y={toY(exitPrice) + 4} textAnchor="middle" fill="#0a0f14" fontSize={10} fontFamily="'Courier New', monospace" fontWeight="bold">{fmtPrice(exitPrice)}</text>
         </g>
       )}
-
       {futureCount === 0 && candles.length > 0 && (() => {
         const last = candles[candles.length - 1];
         const y = toY(last.close);
         const isGreen = last.close >= last.open;
         return (
-          <line x1={padding.left} x2={padding.left + chartW} y1={y} y2={y}
-                stroke={isGreen ? "#00d084" : "#ff4757"} strokeWidth={1}
-                strokeDasharray="4,3" opacity={0.5} />
+          <line x1={padding.left} x2={padding.left + chartW} y1={y} y2={y} stroke={isGreen ? "#00d084" : "#ff4757"} strokeWidth={1} strokeDasharray="4,3" opacity={0.5} />
         );
       })()}
     </svg>
@@ -274,7 +251,7 @@ export default function TradingGame() {
     setBestStreak(newBest);
     setTotalAnswered((t) => t + 1);
     if (isCorrect) setTotalCorrect((t) => t + 1);
-    setHistory((h) => [{ symbol: chartData.symbol, interval: chartData.interval, choice, correct: correctSide, isCorrect, xpEarned, moveBps: chartData.moveBps, ts: Date.now() }, ...h.slice(0, 19)]);
+    setHistory((h) => [{ symbol: chartData.symbol, interval: chartData.interval, choice, correct: correctSide, isCorrect, xpEarned, moveBps: chartData.moveBps, priceDiffStr: _priceDiffStr, ts: Date.now() }, ...h.slice(0, 19)]);
     setLoadingFeedback(true);
     const feedback = await getAIFeedback({ symbol: chartData.symbol, interval: chartData.interval, userChoice: choice, isCorrect, streak: newStreak, moveBps: chartData.moveBps, correct: correctSide });
     setAiFeedback(feedback);
@@ -380,7 +357,7 @@ export default function TradingGame() {
                 <div key={i} style={{ ...styles.historyItem, borderLeft: `3px solid ${h.isCorrect ? "#00d084" : "#ff4757"}` }}>
                   <span style={{ color: "#7a9ab0", fontSize: 11, flex: 1 }}>{h.symbol} <span style={{ color: "#3d84c8" }}>{h.interval}</span></span>
                   <span style={{ color: h.isCorrect ? "#00d084" : "#ff4757", fontSize: 11, fontWeight: 700 }}>{h.choice} {h.isCorrect ? "OK" : "X"}</span>
-                  <span style={{ color: h.moveBps >= 0 ? "#00d084" : "#ff4757", fontSize: 10, marginLeft: 8 }}>{h.moveBps >= 0 ? "+" : ""}{h.moveBps}bp</span>
+                  <span style={{ color: h.moveBps >= 0 ? "#00d084" : "#ff4757", fontSize: 10, marginLeft: 8 }}>{h.priceDiffStr || (h.moveBps + "bp")}</span>
                   <span style={{ color: "#3d84c8", fontSize: 11, marginLeft: 8 }}>+{h.xpEarned}xp</span>
                 </div>
               ))
@@ -448,11 +425,11 @@ export default function TradingGame() {
               </div>
             )}
             {chartData && !chartError && (
-              <CandleChart candles={allCandles} width={700} height={290} futureCount={lastResult ? chartData.futureCandles.length : 0} />
+              <CandleChart candles={allCandles} width={950} height={360} futureCount={lastResult ? chartData.futureCandles.length : 0} />
             )}
           </div>
           <div style={styles.chartLabel}>
-            {lastResult ? `Movimento: ${lastResult.moveBps >= 0 ? "+" : ""}${lastResult.moveBps}bp em ${chartData.futureCandles.length} candles` : "Onde o preco vai nos proximos 15 candles?"}
+            {lastResult ? `Movimento: ${fmtDiff(chartData.futureCandles[chartData.futureCandles.length-1].close - chartData.candles[chartData.candles.length-1].close)} em ${chartData.futureCandles.length} candles` : "Onde o preco vai nos proximos 15 candles?"}
           </div>
         </div>
         {!lastResult && chartData && !loadingChart && !chartError ? (
@@ -469,7 +446,7 @@ export default function TradingGame() {
                   {lastResult.choice === "TIMEOUT" ? "TEMPO ESGOTADO" : lastResult.isCorrect ? "CORRETO!" : "ERRADO"}
                 </div>
                 <div style={{ color: "#4a6278", fontSize: 11 }}>{lastResult.symbol} <span style={{ color: "#7a9ab0" }}>{lastResult.interval}</span></div>
-                {!lastResult.isCorrect && (<div style={{ color: "#4a6278", fontSize: 11 }}>Correto: <span style={{ color: "#e8a838", fontWeight: 700 }}>{lastResult.correct}</span> ({lastResult.moveBps >= 0 ? "+" : ""}{lastResult.moveBps}bp)</div>)}
+                {!lastResult.isCorrect && (<div style={{ color: "#4a6278", fontSize: 11 }}>Correto: <span style={{ color: "#e8a838", fontWeight: 700 }}>{lastResult.correct}</span> ({lastResult.priceDiffStr})</div>)}
               </div>
               <div style={{ marginLeft: "auto", textAlign: "right" }}>
                 <div style={{ color: "#3d84c8", fontWeight: 700, fontSize: 16 }}>+{lastResult.xpEarned}</div>
@@ -514,7 +491,7 @@ const styles = {
   btnPrimary: { background: "linear-gradient(135deg, #00d084 0%, #00a86b 100%)", color: "#060b10", border: "none", borderRadius: 8, padding: "14px 20px", fontFamily: "'Courier New', monospace", fontWeight: 700, fontSize: 13, letterSpacing: 2, cursor: "pointer", textTransform: "uppercase" },
   btnSecondary: { background: "transparent", color: "#4a6278", border: "1px solid #1a2d3d", borderRadius: 8, padding: "12px 20px", fontFamily: "'Courier New', monospace", fontSize: 11, letterSpacing: 2, cursor: "pointer", textTransform: "uppercase" },
   howto: { border: "1px solid #0e1e2e", borderRadius: 6, padding: "10px 14px", textAlign: "center" },
-  gameWrap: { width: "100%", maxWidth: 600, padding: "16px 12px 20px", display: "flex", flexDirection: "column", gap: 12, position: "relative" },
+  gameWrap: { width: "100%", maxWidth: 1000, padding: "16px 12px 20px", display: "flex", flexDirection: "column", gap: 12, position: "relative" },
   gameHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 4px", flexWrap: "wrap", gap: 8 },
   backBtn: { background: "transparent", color: "#4a6278", border: "1px solid #1a2d3d", borderRadius: 6, padding: "6px 12px", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: 14 },
   timerBarBg: { height: 28, background: "#0a1420", border: "1px solid #0e1e2e", borderRadius: 6, overflow: "hidden", position: "relative", display: "flex", alignItems: "center" },

@@ -23,6 +23,7 @@ const INTERVALS = [
   { yahoo: "1d", label: "1D", range: "10y" },
 ];
 const VISIBLE = 75;
+const MIN_TS = new Date("2025-01-01").getTime();
 const FUTURE = 15;
 const UAS = [
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -92,6 +93,7 @@ export default async function handler(req, res) {
       if (o == null || h == null || l == null || c == null) continue;
       candles.push({ open: o, high: h, low: l, close: c, ts: ts[i] * 1000 });
     }
+    candles = candles.filter(k => k.ts >= MIN_TS && k.high > k.low);
     if (ivl.agg) candles = aggregateCandles(candles, ivl.agg);
     if (candles.length < VISIBLE + FUTURE + 5) {
       return res.status(502).json({ error: "not_enough_candles", got: candles.length, sym: asset.sym, ivl: ivl.label });
