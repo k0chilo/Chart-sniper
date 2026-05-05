@@ -169,7 +169,7 @@ export default function TradingGame() {
       setChartError("Falha ao buscar candles da Binance. Tente novamente.");
       setLoadingChart(false);
     }
-  }, []);
+  }, [pickedSymbol, pickedInterval]);
 
   const handleAnswer = useCallback(async (choice) => {
     if (!chartData || lastResult) return;
