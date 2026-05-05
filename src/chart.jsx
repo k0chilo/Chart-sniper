@@ -77,7 +77,9 @@ export function CandleChart({ candles, width = 950, height = 380, futureCount = 
   const pad = range * 0.1;
   const toY = (p) => padding.top + ((maxP + pad - p) / (range + 2 * pad)) * chartH;
   const yToPrice = (y) => maxP + pad - ((y - padding.top) / chartH) * (range + 2 * pad);
-  const candleW = Math.max(8, Math.floor(chartW / candles.length) - 1);
+  const _slotW = chartW / candles.length;
+  const candleW = Math.max(2, Math.floor(_slotW * 0.72));
+  const wickW = Math.max(0.8, Math.min(1.6, candleW / 7));
   const levels = 5;
   const priceLines = Array.from({ length: levels }, (_, i) => minP - pad + ((range + 2 * pad) / (levels - 1)) * i).reverse();
   const fmtPrice = (p) => { if (p == null) return ""; if (p >= 1000) return p.toFixed(1); if (p >= 1) return p.toFixed(3); return p.toFixed(5); };
@@ -152,10 +154,10 @@ export function CandleChart({ candles, width = 950, height = 380, futureCount = 
         const opacity = isFuture ? 0.75 : 0.95;
         const bodyTop = toY(Math.max(c.open, c.close));
         const bodyBot = toY(Math.min(c.open, c.close));
-        const bodyH = Math.max(5, bodyBot - bodyTop);
+        const bodyH = Math.max(2, bodyBot - bodyTop);
         return (
           <g key={i} pointerEvents="none">
-            <line x1={x} x2={x} y1={toY(c.high)} y2={toY(c.low)} stroke={baseColor} strokeWidth={1.1} opacity={opacity} />
+            <line x1={x} x2={x} y1={toY(c.high)} y2={toY(c.low)} stroke={baseColor} strokeWidth={wickW} opacity={opacity} />
             <rect x={x - candleW / 2} y={bodyTop} width={candleW} height={bodyH} fill={baseColor} fillOpacity={isFuture ? 0.65 : 1} />
           </g>
         );
