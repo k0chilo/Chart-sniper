@@ -251,7 +251,7 @@ export default function TradingGame() {
     setBestStreak(newBest);
     setTotalAnswered((t) => t + 1);
     if (isCorrect) setTotalCorrect((t) => t + 1);
-    setHistory((h) => [{ symbol: chartData.symbol, interval: chartData.interval, choice, correct: correctSide, isCorrect, xpEarned, moveBps: chartData.moveBps, priceDiffStr: _priceDiffStr, ts: Date.now() }, ...h.slice(0, 19)]);
+    setHistory((h) => [{ symbol: chartData.symbol, interval: chartData.interval, choice, correct: correctSide, isCorrect, xpEarned, moveBps: chartData.moveBps, priceDiffStr: fmtDiff(chartData.futureCandles[chartData.futureCandles.length-1].close - chartData.candles[chartData.candles.length-1].close), ts: Date.now() }, ...h.slice(0, 19)]);
     setLoadingFeedback(true);
     const feedback = await getAIFeedback({ symbol: chartData.symbol, interval: chartData.interval, userChoice: choice, isCorrect, streak: newStreak, moveBps: chartData.moveBps, correct: correctSide });
     setAiFeedback(feedback);
