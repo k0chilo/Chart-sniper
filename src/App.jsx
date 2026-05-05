@@ -280,8 +280,7 @@ export default function TradingGame() {
       correct: correctSide,
       symbol: chartData.symbol,
       interval: chartData.interval,
-      moveBps: chartData.moveBps,
-    });
+      moveBps: chartData.moveBps, priceDiffStr: fmtDiff(chartData.futureCandles[chartData.futureCandles.length-1].close - chartData.candles[chartData.candles.length-1].close) });
     setXp(newXp);
     setStreak(newStreak);
     setBestStreak(newBest);
