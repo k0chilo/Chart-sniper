@@ -1,143 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ChevronLeft, Check, X as XIcon, TrendingUp, TrendingDown, Flame, Trophy, Play, Home as HomeIcon, ArrowRight, BarChart3, RotateCcw, Target, Clock, Award } from "lucide-react";
 
-function fmtDiff(diff) {
-  const sign = diff >= 0 ? "+" : "";
-  const abs = Math.abs(diff);
-  if (abs >= 100) return sign + diff.toFixed(1);
-  if (abs >= 1) return sign + diff.toFixed(3);
-  return sign + diff.toFixed(5);
-}
-
-function fmtDateLabel(ts, intervalLabel) {
-  const d = new Date(ts);
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const yy = String(d.getFullYear()).slice(2);
-  if (intervalLabel === "1D") return `${dd}/${mm}/${yy}`;
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mn = String(d.getMinutes()).padStart(2, "0");
-  return `${dd}/${mm} ${hh}:${mn}`;
-}
-
-function CandleChart({ candles, width = 950, height = 380, futureCount = 0, watermark, intervalLabel }) {
-  const padding = { top: 38, right: 92, bottom: 42, left: 72 };
-  const chartW = width - padding.left - padding.right;
-  const chartH = height - padding.top - padding.bottom;
-
-  const allPrices = candles.flatMap((c) => [c.high, c.low]);
-  const minP = Math.min(...allPrices);
-  const maxP = Math.max(...allPrices);
-  const range = maxP - minP || 1;
-  const pad = range * 0.1;
-  const toY = (p) => padding.top + ((maxP + pad - p) / (range + 2 * pad)) * chartH;
-  const candleW = Math.max(5, Math.floor(chartW / candles.length) - 2);
-
-  const levels = 5;
-  const priceLines = Array.from({ length: levels }, (_, i) =>
-    minP - pad + ((range + 2 * pad) / (levels - 1)) * i
-  ).reverse();
-
-  const fmtPrice = (p) => {
-    if (p == null) return "";
-    if (p >= 1000) return p.toFixed(1);
-    if (p >= 1) return p.toFixed(3);
-    return p.toFixed(5);
-  };
-
-  const visibleCount = candles.length - futureCount;
-  const candleX = (i) => padding.left + (i / candles.length) * chartW + chartW / candles.length / 2;
-  const dividerX = futureCount > 0 ? padding.left + (visibleCount / candles.length) * chartW : null;
-  const entryCandle = futureCount > 0 ? candles[visibleCount - 1] : null;
-  const exitCandle = futureCount > 0 ? candles[candles.length - 1] : null;
-  const entryPrice = entryCandle?.close;
-  const exitPrice = exitCandle?.close;
-  const movedUp = exitPrice != null && entryPrice != null && exitPrice > entryPrice;
-  const exitColor = movedUp ? "#00d084" : "#ff4757";
-  const lastCandleX = candles.length > 0 ? candleX(candles.length - 1) : 0;
-
-  // pegar 4 datas pra mostrar no eixo de tempo
-  const dateTicks = candles.length > 0 ? [0, Math.floor(candles.length * 0.33), Math.floor(candles.length * 0.66), candles.length - 1] : [];
-
-  return (
-    <svg width="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block", maxHeight: height }}>
-      {watermark && (
-        <text x={padding.left + chartW / 2} y={padding.top + chartH / 2 + 18} textAnchor="middle" fontSize={66} fontFamily="'Inter', sans-serif" fontWeight={800} fill="#1a2332" opacity={0.6} style={{ userSelect: "none", pointerEvents: "none" }}>
-          {watermark}
-        </text>
-      )}
-      {futureCount > 0 && dividerX != null && (
-        <rect x={dividerX} y={padding.top} width={padding.left + chartW - dividerX} height={chartH} fill="#0e1e2e" fillOpacity={0.35} />
-      )}
-      {priceLines.map((p, i) => (
-        <g key={i}>
-          <line x1={padding.left} x2={padding.left + chartW} y1={toY(p)} y2={toY(p)} stroke="#1a2332" strokeWidth={1} strokeDasharray="2,4" opacity={0.7} />
-          <text x={padding.left - 8} y={toY(p) + 4} textAnchor="end" fill="#5a6a7d" fontSize={10} fontFamily="'JetBrains Mono', monospace">
-            {fmtPrice(p)}
-          </text>
-        </g>
-      ))}
-      {candles.map((c, i) => {
-        const x = candleX(i);
-        const isGreen = c.close >= c.open;
-        const isFuture = i >= visibleCount;
-        const baseColor = isGreen ? "#00d084" : "#ff4757";
-        const opacity = isFuture ? 0.75 : 0.95;
-        const bodyTop = toY(Math.max(c.open, c.close));
-        const bodyBot = toY(Math.min(c.open, c.close));
-        const bodyH = Math.max(1, bodyBot - bodyTop);
-        return (
-          <g key={i}>
-            <line x1={x} x2={x} y1={toY(c.high)} y2={toY(c.low)} stroke={baseColor} strokeWidth={1.4} opacity={opacity} />
-            <rect x={x - candleW / 2} y={bodyTop} width={candleW} height={bodyH} fill={baseColor} fillOpacity={opacity} stroke={baseColor} strokeWidth={0.5} />
-          </g>
-        );
-      })}
-      {/* Eixo de tempo */}
-      {dateTicks.map((idx, i) => {
-        const c = candles[idx];
-        if (!c?.ts) return null;
-        const x = candleX(idx);
-        return (
-          <g key={`t${i}`}>
-            <line x1={x} x2={x} y1={padding.top + chartH} y2={padding.top + chartH + 4} stroke="#2a3548" strokeWidth={1} />
-            <text x={x} y={padding.top + chartH + 18} textAnchor="middle" fill="#5a6a7d" fontSize={10} fontFamily="'JetBrains Mono', monospace">
-              {fmtDateLabel(c.ts, intervalLabel)}
-            </text>
-          </g>
-        );
-      })}
-      {futureCount > 0 && entryPrice != null && (
-        <g>
-          <line x1={dividerX} x2={dividerX} y1={padding.top} y2={padding.top + chartH} stroke="#e8a838" strokeWidth={2} strokeDasharray="6,3" />
-          <line x1={padding.left} x2={padding.left + chartW} y1={toY(entryPrice)} y2={toY(entryPrice)} stroke="#e8a838" strokeWidth={1} strokeDasharray="2,3" opacity={0.55} />
-          <rect x={dividerX - 40} y={padding.top - 26} width={80} height={20} rx={4} fill="#e8a838" />
-          <text x={dividerX} y={padding.top - 12} textAnchor="middle" fill="#0a0e14" fontSize={11} fontFamily="'Inter', sans-serif" fontWeight={700}>ENTRADA</text>
-          <rect x={padding.left + chartW + 4} y={toY(entryPrice) - 9} width={84} height={18} rx={4} fill="#e8a838" />
-          <text x={padding.left + chartW + 46} y={toY(entryPrice) + 4} textAnchor="middle" fill="#0a0e14" fontSize={10} fontFamily="'JetBrains Mono', monospace" fontWeight={700}>{fmtPrice(entryPrice)}</text>
-        </g>
-      )}
-      {futureCount > 0 && exitPrice != null && (
-        <g>
-          <line x1={lastCandleX} x2={lastCandleX} y1={padding.top} y2={padding.top + chartH} stroke={exitColor} strokeWidth={2} strokeDasharray="6,3" />
-          <line x1={dividerX} x2={padding.left + chartW} y1={toY(exitPrice)} y2={toY(exitPrice)} stroke={exitColor} strokeWidth={2} />
-          <rect x={lastCandleX - 22} y={padding.top - 26} width={44} height={20} rx={4} fill={exitColor} />
-          <text x={lastCandleX} y={padding.top - 12} textAnchor="middle" fill="#0a0e14" fontSize={11} fontFamily="'Inter', sans-serif" fontWeight={700}>FIM</text>
-          <rect x={padding.left + chartW + 4} y={toY(exitPrice) - 9} width={84} height={18} rx={4} fill={exitColor} />
-          <text x={padding.left + chartW + 46} y={toY(exitPrice) + 4} textAnchor="middle" fill="#0a0e14" fontSize={10} fontFamily="'JetBrains Mono', monospace" fontWeight={700}>{fmtPrice(exitPrice)}</text>
-        </g>
-      )}
-      {futureCount === 0 && candles.length > 0 && (() => {
-        const last = candles[candles.length - 1];
-        const y = toY(last.close);
-        const isGreen = last.close >= last.open;
-        return (
-          <line x1={padding.left} x2={padding.left + chartW} y1={y} y2={y} stroke={isGreen ? "#00d084" : "#ff4757"} strokeWidth={1} strokeDasharray="4,3" opacity={0.5} />
-        );
-      })()}
-    </svg>
-  );
-}
+import { CandleChart, ChartToolbar, fmtDiff, fmtDateLabel } from "./chart.jsx";
 
 async function fetchRound() {
   const r = await fetch("/api/random-chart");
@@ -215,6 +79,50 @@ export default function TradingGame() {
   const [levelUpFlash, setLevelUpFlash] = useState(null);
   const timerRef = useRef(null);
   const chartScrollRef = useRef(null);
+  const svgRef = useRef(null);
+  const [tool, setTool] = useState("none");
+  const [drawings, setDrawings] = useState([]);
+  const [pending, setPending] = useState(null);
+  const [hoverPt, setHoverPt] = useState(null);
+
+  useEffect(() => {
+    setDrawings([]);
+    setPending(null);
+    setHoverPt(null);
+    setTool("none");
+  }, [chartData?.symbol, chartData?.interval, chartData?.candles?.[0]?.ts]);
+
+  const eventToCoords = (e) => {
+    const svg = svgRef.current;
+    if (!svg) return null;
+    const rect = svg.getBoundingClientRect();
+    return {
+      x: ((e.clientX - rect.left) / rect.width) * 950,
+      y: ((e.clientY - rect.top) / rect.height) * 380,
+    };
+  };
+
+  const handleSvgClick = (e) => {
+    if (tool === "none") return;
+    const pt = eventToCoords(e);
+    if (!pt) return;
+    if (tool === "hline") {
+      setDrawings((d) => [...d, { type: "hline", y: pt.y, id: Date.now() }]);
+    } else if (tool === "trendline" || tool === "fib") {
+      if (!pending) setPending({ type: tool, p1: pt });
+      else {
+        setDrawings((d) => [...d, { ...pending, p2: pt, id: Date.now() }]);
+        setPending(null);
+      }
+    }
+  };
+
+  const handleSvgMove = (e) => {
+    if (tool === "none" && !pending) return;
+    setHoverPt(eventToCoords(e));
+  };
+
+  const handleSvgLeave = () => setHoverPt(null);
 
   useEffect(() => {
     const s = loadState();
@@ -446,6 +354,9 @@ export default function TradingGame() {
           </div>
         )}
         <div style={styles.chartBox}>
+          {chartData && !lastResult && !chartError && !loadingChart && (
+            <ChartToolbar tool={tool} setTool={setTool} pending={pending} setPending={setPending} onClearAll={() => { setDrawings([]); setPending(null); }} />
+          )}
           <div ref={chartScrollRef} style={{ overflowX: "auto", minHeight: 260, display: "flex", alignItems: "center", justifyContent: "center" }}>
             {loadingChart && (
               <div className="skeleton" style={{ width: "100%", height: 380, borderRadius: 8 }} />
@@ -457,7 +368,7 @@ export default function TradingGame() {
               </div>
             )}
             {chartData && !chartError && (
-              <CandleChart candles={allCandles} width={950} height={380} futureCount={lastResult ? chartData.futureCandles.length : 0} watermark={lastResult ? `${chartData.symbol} ${chartData.interval}` : null} intervalLabel={chartData?.interval} />
+              <CandleChart candles={allCandles} width={950} height={380} futureCount={lastResult ? chartData.futureCandles.length : 0} watermark={lastResult ? `${chartData.symbol} ${chartData.interval}` : null} intervalLabel={chartData?.interval} drawings={drawings} pending={pending} hover={hoverPt} tool={tool} svgRef={svgRef} onClick={handleSvgClick} onMouseMove={handleSvgMove} onMouseLeave={handleSvgLeave} />
             )}
           </div>
           <div style={styles.chartLabel}>
